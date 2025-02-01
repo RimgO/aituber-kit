@@ -9,6 +9,8 @@ const fetchImageInfo = async () => {
   try {
     const response = await fetch('http://127.0.0.1:8000/data/', {
       method: 'GET',
+      mode: "cors", // no-cors, *cors, same-origin
+      cache: "default", // *default, no-cache, reload, force-cache, only-if-cached
       headers: {
         'Accept': 'application/json',
       },
@@ -38,6 +40,8 @@ const fetchImageFile = async () => {
   try {
     const response = await fetch('http://127.0.0.1:8000/file/', {
       method: 'GET',
+      mode: "cors", // no-cors, *cors, same-origin
+      cache: "default", // *default, no-cache, reload, force-cache, only-if-cached
       headers: {
         'Accept': 'image/png',  // JSONではなくPNG形式を要求
       },
