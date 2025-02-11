@@ -18,18 +18,7 @@ const fetchImageInfo = async () => {
     });
     // JSONとしてパース
     const jsonData = await response.json();
-    return jsonData;
-    /*
-    // 必要な要素を抽出
-    return {
-      image: jsonData.imageurl || null,
-      timestamp: jsonData.timestamp || null,
-      age: jsonData.age || null,
-      gender: jsonData.gender || null,
-      mood: jsonData.mood || 'unknown'
-    };
-    */
-    
+    return jsonData;    
   } catch (err) {
     console.error('Failed to fetch info:', err);
     return null;
@@ -73,7 +62,9 @@ export const Webcam = () => {
     timestamp: '',
     age: '',
     gender: '',
-    mood: ''
+    mood: '',
+    recognizestate: '',
+    recognizedname: ''
   });
 
   const refreshDevices = useCallback(async () => {
@@ -162,7 +153,8 @@ export const Webcam = () => {
       if (showWebcam) {
         fetchWebcamImage();
       }
-    }, 1000); // 1 FPS
+    }, 3000); // 3 FPS
+//  }, 1000); // 1 FPS
 //  }, 1000/30); // 30 FPS
 
     return () => clearInterval(interval);
@@ -205,7 +197,9 @@ useEffect(() => {
         timestamp: json_d.timestamp || '',
         age: json_d.age || '',
         gender: json_d.gender || '',
-        mood: json_d.mood || ''
+        mood: json_d.mood || '',
+        recognizestate: json_d.recognizestate || '',
+        recognizedname: json_d.recognizedname || ''
       });
     }
   };
@@ -282,6 +276,8 @@ const fetchWebcamImage = async () => {
             <p>Age: {apiData.age}</p>
             <p>Gender: {apiData.gender}</p>
             <p>Mood: {apiData.mood}</p>
+            <p>State: {apiData.recognizestate}</p>
+            <p>Name: {apiData.recognizedname}</p>
           </div>
           {/* カメラ切り替えボタン */}  
           <div className="md:block absolute top-4 right-4">
