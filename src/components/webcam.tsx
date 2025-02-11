@@ -145,7 +145,7 @@ export const Webcam = () => {
   
   useEffect(() => {
     console.log('Selected device changed:', selectedDevice)
-    fetchWebcamImage()
+    //fetchWebcamImage();
     const json_d = fetchImageInfo();
     console.log('Fetched file info:', json_d);
 
@@ -153,7 +153,7 @@ export const Webcam = () => {
       if (showWebcam) {
         fetchWebcamImage();
       }
-    }, 3000); // 3 FPS
+    }, 5000); // 3 FPS
 //  }, 1000); // 1 FPS
 //  }, 1000/30); // 30 FPS
 

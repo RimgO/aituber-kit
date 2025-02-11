@@ -1,0 +1,15 @@
+```mermaid
+graph TD
+  A[fetchImageInfo] --> B[Try to fetch data from API]
+  B -->|Success| C[Parse response as JSON]
+  C --> D[Return JSON data]
+  B -->|Failure| E[Log error]
+  E --> F[Return null]
+
+  G[fetchImageFile] --> H[Try to fetch image from API]
+  H -->|Success| I[Convert response to Blob]
+  I --> J[Create object URL from Blob]
+  J --> K[Return object URL]
+  H -->|Failure| L[Log error]
+  L --> M[Return null]
+```

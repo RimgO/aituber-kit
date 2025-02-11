@@ -111,25 +111,30 @@ const Capture = () => {
   }
 
   const handleCapture = useCallback(() => {
-    if (videoRef.current) {
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      const { videoWidth, videoHeight } = videoRef.current;
+    if (videoRef.current && mediaStreamRef.current) {
+      const canvas = document.createElement('canvas')
+      const context = canvas.getContext('2d')
+      const { videoWidth, videoHeight } = videoRef.current
 
-      canvas.width = videoWidth;
-      canvas.height = videoHeight;
-      context?.drawImage(videoRef.current, 0, 0);
-      
-      // キャプチャした画像をモーダルに設定
-      const dataUrl = canvas.toDataURL('image/png');
+      canvas.width = videoWidth
+      canvas.height = videoHeight
+      context?.drawImage(videoRef.current, 0, 0)
+
+      const dataUrl = canvas.toDataURL('image/png')
+
       if (dataUrl !== '') {
+        console.log('capture')
         homeStore.setState({
           modalImage: dataUrl,
-          triggerShutter: false
-        });
+          triggerShutter: false, // シャッターをリセット
+        })
+      } else {
+        homeStore.setState({ modalImage: '' })
       }
+    } else {
+      console.error('Video or media stream is not available')
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
     if (triggerShutter) {
