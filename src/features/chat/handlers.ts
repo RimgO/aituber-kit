@@ -158,7 +158,7 @@ export const processAIResponse = async (
 
   try {
     //stream = await getAIChatResponseStream(messages, userInfo)
-    stream = await getAIChatResponseStream(messages, [{ name: "2025_x", age: 40, gender: "male" }])
+    stream = await getAIChatResponseStream(messages, [{ name: "田中", age: 40, gender: "male" }])
   } catch (e) { 
     console.error(e)
     stream = null

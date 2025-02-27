@@ -22,18 +22,19 @@ export async function getDifyChatResponseStream(
   const response = await fetch('/api/difyChat', {
     method: 'POST',
     headers: {
+      "Authorization": `Bearer ${apiKey}`,      
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       query: messages[messages.length - 1].content,
       apiKey,
-      url,
+      url: `${url}/workflows/run`,
       conversationId,
       stream: true,
       inputs: userInfo,
     }),
   })
-  console.log("dify/response:",messages[messages.length - 1].content, userInfo,response.ok,response.body)
+  console.log("dify/response:",messages[messages.length - 1].content, userInfo,url,apiKey, response.ok,response.body)
 
   try {
     if (!response.ok) {

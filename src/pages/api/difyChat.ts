@@ -32,9 +32,9 @@ export default async function handler(req: NextRequest) {
   }
   const cleanUrl = (url: string) => {
     const trimmedUrl = url.replace(/\/$/, '')
-    return trimmedUrl.endsWith('/chat-messages')
+    return trimmedUrl.endsWith('/workflows/run')
       ? trimmedUrl
-      : `${trimmedUrl}/chat-messages`
+      : `${trimmedUrl}/workflows/run`
   }
 
   const difyUrl = url
