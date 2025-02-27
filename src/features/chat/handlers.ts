@@ -12,6 +12,12 @@ import i18next from 'i18next'
 import toastStore from '@/features/stores/toast'
 import { getSystemPrompt } from '../constants/systemPromptConstants'
 
+interface UserInfo {
+  name: string;
+  age: number;
+  gender: string;
+}
+
 /**
  * 受け取ったメッセージを処理し、AIの応答を生成して発話させる
  * @param receivedMessage 処理する文字列
@@ -151,8 +157,9 @@ export const processAIResponse = async (
   const currentSlideMessages: string[] = []
 
   try {
-    stream = await getAIChatResponseStream(messages)
-  } catch (e) {
+    //stream = await getAIChatResponseStream(messages, userInfo)
+    stream = await getAIChatResponseStream(messages, [{ name: "2025_x", age: 40, gender: "male" }])
+  } catch (e) { 
     console.error(e)
     stream = null
   }
@@ -355,6 +362,11 @@ export const handleSendChatFn = () => async (text: string) => {
   const sls = slideStore.getState()
   const wsManager = webSocketStore.getState().wsManager
 
+  // Promptの設定を確認
+  let prompt = ss.promptType
+  let systemPrompt = getSystemPrompt(ss.promptType)
+  console.log(ss.promptType,systemPrompt)
+  
   if (ss.externalLinkageMode) {
     homeStore.setState({ chatProcessing: true })
 
@@ -362,7 +374,11 @@ export const handleSendChatFn = () => async (text: string) => {
       // ユーザーの発言を追加して表示
       const updateLog: Message[] = [
         ...hs.chatLog,
-        { role: 'user', content: newMessage, timestamp: timestamp },
+        { 
+          role: 'user', 
+          content: newMessage, 
+          timestamp: timestamp,
+        }
       ]
       homeStore.setState({
         chatLog: updateLog,
@@ -394,11 +410,6 @@ export const handleSendChatFn = () => async (text: string) => {
       })
     }
   } else {
-    // Promptの設定を確認
-    let prompt = ss.promptType
-    let systemPrompt = getSystemPrompt(ss.promptType)
-    console.log(ss.promptType,systemPrompt)
-    
     //let systemPrompt = ss.systemPrompt
     if (ss.slideMode) {
       if (sls.isPlaying) {
@@ -447,8 +458,14 @@ export const handleSendChatFn = () => async (text: string) => {
         role: 'user',
         content: hs.modalImage
           ? [
-              { type: 'text', text: newMessage },
-              { type: 'image', image: hs.modalImage },
+              { 
+                type: 'text', 
+                text: newMessage
+              },
+              { 
+                type: 'image', 
+                image: hs.modalImage
+              },
             ]
           : newMessage,
         timestamp: timestamp,
@@ -463,6 +480,7 @@ export const handleSendChatFn = () => async (text: string) => {
       {
         role: 'system',
         content: systemPrompt,
+        userInfo: { name: "user", age: 40, gender: "male" } as UserInfo,
       },
       ...messageSelectors.getProcessedMessages(
         messageLog,
@@ -471,6 +489,7 @@ export const handleSendChatFn = () => async (text: string) => {
     ]
 
     try {
+      console.log(newMessage,messages) //for debug
       await processAIResponse(messageLog, messages)
     } catch (e) {
       console.error(e)

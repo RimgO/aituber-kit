@@ -1,5 +1,5 @@
 import settingsStore from '@/features/stores/settings'
-import { Message } from '../messages/messages'
+import { Message,UserInfo } from '../messages/messages'
 import i18next from 'i18next'
 import toastStore from '@/features/stores/toast'
 
@@ -9,12 +9,16 @@ function handleApiError(errorCode: string): string {
   return i18next.t(`Errors.${errorCode || 'AIAPIError'}`)
 }
 
+
 export async function getDifyChatResponseStream(
   messages: Message[],
   apiKey: string,
   url: string,
-  conversationId: string
+  userInfo: UserInfo[],
+  conversationId?: string
 ): Promise<ReadableStream<string>> {
+  const ss = settingsStore.getState();
+
   const response = await fetch('/api/difyChat', {
     method: 'POST',
     headers: {
@@ -26,8 +30,10 @@ export async function getDifyChatResponseStream(
       url,
       conversationId,
       stream: true,
+      inputs: userInfo,
     }),
   })
+  console.log("dify/response:",messages[messages.length - 1].content, userInfo,response.ok,response.body)
 
   try {
     if (!response.ok) {
@@ -65,6 +71,7 @@ export async function getDifyChatResponseStream(
                 const jsonStr = line.slice(5) // 'data:' プレフィックスを除去
                 try {
                   const data = JSON.parse(jsonStr)
+                  console.log("dify/data:",data) // for debug
                   if (
                     data.event === 'agent_message' ||
                     data.event === 'message'

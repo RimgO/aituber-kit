@@ -84,17 +84,55 @@ const homeStore = create<HomeState>()(
 // chatLogの変更を監視して保存
 homeStore.subscribe((state, prevState) => {
   if (state.chatLog !== prevState.chatLog && state.chatLog.length > 0) {
+    // Create a safe serializable message structure
+    const safeMessages = state.chatLog.map(message => {
+      // Basic message properties
+      const safeMessage: any = {
+        role: message.role,
+        timestamp: message.timestamp
+      };
+
+      // Handle content properly
+      if (typeof message.content === 'string') {
+        safeMessage.content = message.content;
+      } else if (Array.isArray(message.content)) {
+        safeMessage.content = message.content.map(c => {
+          const contentItem: any = { type: c.type };
+          if (c.type === 'text' && c.text) {
+            contentItem.text = c.text;
+          }
+          if (c.type === 'image' && c.image) {
+            // Ensure image data is serializable
+            contentItem.image = typeof c.image === 'string' ? c.image : null;
+          }
+          return contentItem;
+        }).filter(item => item.text || item.image); // Remove empty items
+      }
+
+      // Add user info if present, only including necessary fields
+      if (message.userInfo) {
+        safeMessage.userInfo = {
+          name: message.userInfo.name,
+          age: message.userInfo.age,
+          gender: message.userInfo.gender
+        };
+      }
+
+      return safeMessage;
+    });
+
+    // Send sanitized messages to API
     fetch('/api/save-chat-log', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        messages: state.chatLog,
+        messages: safeMessages,
         isNewFile: prevState.chatLog.length === 0,
       }),
-    }).catch((error) => console.error('Error saving chat log:', error))
+    }).catch((error) => console.error('Error saving chat log:', error));
   }
-})
+});
 
 export default homeStore

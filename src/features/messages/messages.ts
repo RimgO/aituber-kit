@@ -1,3 +1,9 @@
+export type UserInfo = {
+  name: string;
+  age?: number;
+  gender?: string;
+}
+
 export type Message = {
   role: string // "assistant" | "system" | "user";
   content?:
@@ -5,6 +11,22 @@ export type Message = {
     | [{ type: 'text'; text: string }, { type: 'image'; image: string }] // マルチモーダル拡張
   audio?: { id: string }
   timestamp?: string
+  userInfo?: UserInfo;
+}
+
+export type SaveableMessage = {
+  role: string;
+  content: string | Array<{
+    type: 'text' | 'image';
+    text?: string;
+    image?: string;
+  }>;
+  timestamp?: string;
+  userInfo?: {
+    name: string;
+    age?: number;
+    gender?: string;
+  };
 }
 
 export const EMOTIONS = ['neutral', 'happy', 'angry', 'sad', 'relaxed'] as const

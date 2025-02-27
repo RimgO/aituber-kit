@@ -1,4 +1,4 @@
-import { Message } from '@/features/messages/messages'
+import { Message,UserInfo } from '@/features/messages/messages'
 import { AIService } from '@/features/constants/settings'
 import { getLocalLLMChatResponseStream } from './localLLMChat'
 import { getDifyChatResponseStream } from './difyChat'
@@ -7,7 +7,8 @@ import settingsStore from '@/features/stores/settings'
 import { getOpenAIAudioChatResponseStream } from '@/features/chat/openAIAudioChat'
 
 export async function getAIChatResponseStream(
-  messages: Message[]
+  messages: Message[],
+  userInfo: UserInfo[],
 ): Promise<ReadableStream<string> | null> {
   const ss = settingsStore.getState()
 
@@ -38,7 +39,8 @@ export async function getAIChatResponseStream(
         messages,
         ss.difyKey || '',
         ss.difyUrl || '',
-        ss.difyConversationId
+        userInfo,
+        ss.difyConversationId,
       )
     default:
       throw new Error(`Unsupported AI service: ${ss.selectAIService}`)
