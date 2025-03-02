@@ -10,6 +10,7 @@ import { messageSelectors } from '../messages/messageSelectors'
 import webSocketStore from '@/features/stores/websocketStore'
 import i18next from 'i18next'
 import toastStore from '@/features/stores/toast'
+import { getSystemPrompt } from '../constants/systemPromptConstants'
 
 /**
  * 受け取ったメッセージを処理し、AIの応答を生成して発話させる
@@ -393,7 +394,12 @@ export const handleSendChatFn = () => async (text: string) => {
       })
     }
   } else {
-    let systemPrompt = ss.systemPrompt
+    // Promptの設定を確認
+    let prompt = ss.promptType
+    let systemPrompt = getSystemPrompt(ss.promptType)
+    console.log(ss.promptType,systemPrompt)
+    
+    //let systemPrompt = ss.systemPrompt
     if (ss.slideMode) {
       if (sls.isPlaying) {
         return
@@ -465,6 +471,7 @@ export const handleSendChatFn = () => async (text: string) => {
     ]
 
     try {
+      console.log('processAIResponse:', messages)
       await processAIResponse(messageLog, messages)
     } catch (e) {
       console.error(e)
@@ -611,3 +618,81 @@ export const handleReceiveTextFromRtFn =
     }
     homeStore.setState({ chatProcessing: false })
   }
+
+/**
+ * ユーザーID変更処理関数
+ * @param userId 新しいユーザーID
+ * @param callback ユーザーID変更後に実行するコールバック
+ * @returns 変更があったかどうか
+ */
+export const updateUserId = (userId: string, callback?: (userId: string) => void): boolean => {
+  const ss = settingsStore.getState()
+  
+  if (userId && ss.userId !== userId) {
+    console.log(`ユーザーIDが変更されました: ${ss.userId} → ${userId}`)
+    settingsStore.setState({ userId: userId })
+    
+    // ユーザーID変更後に任意の処理を実行
+    if (callback) {
+      callback(userId)
+    }
+    
+    return true
+  }
+  
+  return false
+}
+
+/**
+ * カメラAPIからユーザーIDを取得する
+ * @param callback ユーザーID取得後に実行するコールバック
+ * @param apiUrl カメラAPIのURL（デフォルト: http://localhost:8000/data/）
+ */
+export const fetchUserIdFromCamera = async (
+  callback?: (userId: string) => void,
+  apiUrl: string = 'http://localhost:8000/data/'
+): Promise<string | null> => {
+  try {
+    const response = await fetch(apiUrl)
+    
+    if (!response.ok) {
+      throw new Error(`カメラAPIリクエスト失敗: ${response.status} ${response.statusText}`)
+    }
+    
+    const data = await response.json()
+    
+    // 認識状態の確認 - recognizestateがfalseならユーザーなし
+    if (data.recognizestate === false) {
+      console.log('カメラAPI: ユーザー未検出')
+      return null
+    }
+    
+    // recognizednameフィールドをユーザーIDとして使用
+    const userId = data.recognizedname
+    
+    if (userId) {
+      // ユーザーIDの変更を処理
+      const updated = updateUserId(userId, () => {
+        // ユーザーID変更時の特別な処理をここに
+        // callback が設定されていればそれも後で実行される
+      })
+      
+      if (updated) {
+        console.log(`カメラAPIからユーザーID「${userId}」を検出しました`)
+      }
+      
+      // コールバックが指定されていれば実行
+      if (callback) {
+        callback(userId)
+      }
+      
+      return userId
+    } else {
+      console.warn('カメラAPIからのレスポンスにrecognizednameフィールドがありません:', data)
+    }
+  } catch (e) {
+    console.error('カメラAPIからのユーザーID取得エラー:', e)
+  }
+  
+  return null
+}

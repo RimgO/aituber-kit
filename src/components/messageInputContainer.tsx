@@ -5,6 +5,8 @@ import { VoiceLanguage } from '@/features/constants/settings'
 import webSocketStore from '@/features/stores/websocketStore'
 import { useTranslation } from 'react-i18next'
 import toastStore from '@/features/stores/toast'
+import cammicApp from './cammic'
+import { CameraMonitor } from './cameraMonitor'
 
 const NO_SPEECH_TIMEOUT = 3000
 
@@ -13,11 +15,15 @@ type AudioContextType = typeof AudioContext
 
 type Props = {
   onChatProcessStart: (text: string) => void
+  initialTranscript?: string
 }
 
-export const MessageInputContainer = ({ onChatProcessStart }: Props) => {
+export const MessageInputContainer = ({ 
+  onChatProcessStart,
+  initialTranscript = ''
+}: Props) => {
   const realtimeAPIMode = settingsStore.getState().realtimeAPIMode
-  const [userMessage, setUserMessage] = useState('')
+  const [userMessage, setUserMessage] = useState(initialTranscript || '')
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null)
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null)
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
@@ -28,6 +34,11 @@ export const MessageInputContainer = ({ onChatProcessStart }: Props) => {
   const audioChunksRef = useRef<Blob[]>([])
   const isListeningRef = useRef(false)
   const [isListening, setIsListening] = useState(false)
+  const cammicRef = useRef<InstanceType<typeof cammicApp> | null>(null)
+  const [currentTranscript, setCurrentTranscript] = useState(initialTranscript || '')
+  // ユーザーID管理用
+  const currentUserIdRef = useRef<string | null>(null)
+  const [enableAutoVoiceStart, setEnableAutoVoiceStart] = useState(true)
 
   const { t } = useTranslation()
 
@@ -70,6 +81,77 @@ export const MessageInputContainer = ({ onChatProcessStart }: Props) => {
         return 'ja-JP'
     }
   }
+
+  // Add initialization effect for cammicApp
+  useEffect(() => {
+    const initializeCammic = async () => {
+      console.log("Initializing cammicApp");
+      if (!cammicRef.current) {
+        try {
+          let prev_length = currentTranscript.length;
+          // インスタンス作成前にログを追加
+          console.log("Creating new cammicApp instance...");
+          const cammicInstance = new cammicApp();
+          cammicRef.current = cammicInstance;
+          console.log("cammicApp instance created successfully");
+
+          // 初期化状態をログ出力
+          console.log("cammicApp state:", {
+            isInitialized: !!cammicRef.current,
+            instance: cammicRef.current
+          });
+
+          // Set up transcript callback before starting
+          cammicRef.current.setTranscriptCallback((transcript: string) => {
+            setUserMessage(transcript);
+
+            if (prev_length > 0 && prev_length !== transcript.length) {
+              setTimeout(() => {
+                if (prev_length === transcript.length) {
+                  if (cammicRef.current) {
+                    // Use the transcript directly instead of relying on state
+                    handleSendMessage(transcript);
+                    cammicRef.current.stop();
+
+                    setTimeout(() => {
+                      if (cammicRef.current) {
+                        cammicRef.current.start();
+                      }
+                    }, 1000);
+                  }
+                }
+              }, 1000);
+            }
+            prev_length = transcript.length;
+          });
+
+          // Attempt to start with proper error handling
+          await cammicRef.current.start();
+          console.log("cammicApp initialized successfully");
+        } catch (error) {
+          if (error instanceof Error) {
+            if (error.message.includes('permission denied')) {
+              console.error("Microphone access was denied by the user");
+              // Potentially show a user-friendly message here
+            } else {
+              console.error("Failed to initialize cammicApp:", error.message);
+            }
+          }
+          // Clean up the failed instance
+          cammicRef.current = null;
+        }
+      }
+    };
+
+    initializeCammic();
+
+    return () => {
+      if (cammicRef.current) {
+        cammicRef.current.stop();
+        cammicRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const SpeechRecognition =
@@ -312,30 +394,77 @@ export const MessageInputContainer = ({ onChatProcessStart }: Props) => {
     }
   }, [startListening, stopListening])
 
+  
   // メッセージ送信
-  const handleSendMessage = useCallback(() => {
-    if (userMessage.trim()) {
-      onChatProcessStart(userMessage)
-      setUserMessage('')
+  const handleSendMessage = useCallback((transcriptText?: string) => {
+    console.log('handleSendMessage/userMessage:', userMessage);
+    console.log('handleSendMessage/transcriptText:', transcriptText);
+    
+    const messageToSend = transcriptText || userMessage.trim();
+    
+    if (messageToSend && typeof onChatProcessStart === 'function') {
+      console.log('Sending message:', messageToSend);
+      onChatProcessStart(messageToSend);
+      setUserMessage('');
+    } else {
+      console.error('Message is empty or onChatProcessStart is not a function', {
+        userMessage,
+        transcriptText,
+        isFunction: typeof onChatProcessStart === 'function'
+      });
     }
   }, [userMessage, onChatProcessStart])
 
   // メッセージ入力
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      console.log('handleInputChange:', e.target.value)
       setUserMessage(e.target.value)
     },
     []
   )
 
+  // ユーザー検出時のハンドラ
+  const handleUserDetected = useCallback((userId: string, isNewUser: boolean) => {
+    console.log(`ユーザー検出: ${userId}, 新規ユーザー: ${isNewUser}`)
+    currentUserIdRef.current = userId
+    
+    // 新規ユーザーかつ自動音声入力が有効な場合
+    if (isNewUser && enableAutoVoiceStart) {
+      console.log('新規ユーザー検出: 音声入力を自動開始')
+      
+      // 現在音声入力中なら一度停止する
+      if (isListeningRef.current) {
+        stopListening()
+      }
+      
+      // 少し遅延させて音声入力開始
+      setTimeout(() => {
+        startListening()
+      }, 1000)
+    }
+  }, [enableAutoVoiceStart])
+
   return (
-    <MessageInput
-      userMessage={userMessage}
-      isMicRecording={isListening} // useState の値を使用
-      onChangeUserMessage={handleInputChange}
-      onClickMicButton={toggleListening}
-      onClickSendButton={handleSendMessage}
-    />
+    <>
+      {/* カメラモニターをコンポーネントとして埋め込む */}
+      <CameraMonitor 
+        onUserDetected={handleUserDetected}
+        pollInterval={3000} // 3秒ごとにチェック
+      />
+      
+      <div className="flex gap-2 p-2">
+        <MessageInput
+          userMessage={userMessage}
+          isMicRecording={isListening}
+          onChangeUserMessage={handleInputChange}
+          onClickMicButton={toggleListening}
+          onClickSendButton={handleSendMessage}
+          chatProcessing={false}
+          slidePlaying={false}
+        />
+      </div>
+    </>
   )
 }
 

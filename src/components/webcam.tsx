@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import { MessageInputContainer } from './messageInputContainer'
 
 import homeStore from '@/features/stores/home'
 import settingsStore from '@/features/stores/settings'
@@ -55,6 +56,7 @@ export const Webcam = () => {
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null)
   const backgroundVideoRef = useRef<HTMLVideoElement>(null)
+  const [currentTranscript, setCurrentTranscript] = useState('')
 
   // 状態の追加
   const [apiData, setApiData] = useState({
@@ -109,6 +111,7 @@ export const Webcam = () => {
     }
   }, [useVideoAsBackground])
 
+  // Modify initializeCamera to connect with CAMMICApp
   const initializeCamera = useCallback(async () => {
     if (!navigator.mediaDevices || !selectedDevice) return
     try {
@@ -118,6 +121,10 @@ export const Webcam = () => {
       })
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        // Connect stream to CAMMICApp if initialized
+        if (cammicRef.current) {
+          cammicRef.current.setVideoStream(stream);
+        }
       }
       if (backgroundVideoRef.current && useVideoAsBackground) {
         backgroundVideoRef.current.srcObject = stream
@@ -298,6 +305,7 @@ const fetchWebcamImage = async () => {
           </div>
         </div>
       </div>
+      <MessageInputContainer initialTranscript={currentTranscript} />
       {isLoading && <div>Loading...</div>}
       {error && <div className="error">{error}</div>}
     </>
