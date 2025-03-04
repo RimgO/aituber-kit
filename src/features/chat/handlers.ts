@@ -650,7 +650,7 @@ export const updateUserId = (userId: string, callback?: (userId: string) => void
  */
 export const fetchUserIdFromCamera = async (
   callback?: (userId: string) => void,
-  apiUrl: string = 'http://localhost:8000/data/'
+  apiUrl: string = 'http://localhost:8888/data/'
 ): Promise<string | null> => {
   try {
     const response = await fetch(apiUrl)

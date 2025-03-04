@@ -11,7 +11,7 @@ type CameraMonitorProps = {
 export const CameraMonitor = ({
   onUserDetected,
   pollInterval = 5000, // デフォルトは5秒ごと
-  apiUrl = 'http://localhost:8000/data/'
+  apiUrl = 'http://localhost:8888/data/'
 }: CameraMonitorProps) => {
   const [isMonitoring, setIsMonitoring] = useState(false)
   const previousUserIdRef = useRef<string | null>(null)

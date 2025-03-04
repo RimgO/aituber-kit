@@ -8,7 +8,7 @@ import { IconButton } from './iconButton'
 // API client functions を修正
 const fetchImageInfo = async () => {
   try {
-    const response = await fetch('http://127.0.0.1:8000/data/', {
+    const response = await fetch('http://127.0.0.1:8888/data/', {
       method: 'GET',
       mode: "cors", // no-cors, *cors, same-origin
       cache: "default", // *default, no-cache, reload, force-cache, only-if-cached
@@ -28,7 +28,7 @@ const fetchImageInfo = async () => {
 
 const fetchImageFile = async () => {
   try {
-    const response = await fetch('http://127.0.0.1:8000/file/', {
+    const response = await fetch('http://127.0.0.1:8888/file/', {
       method: 'GET',
       mode: "cors", // no-cors, *cors, same-origin
       cache: "default", // *default, no-cache, reload, force-cache, only-if-cached
