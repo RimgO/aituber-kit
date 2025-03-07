@@ -220,9 +220,28 @@ export const MessageInputContainer = ({
       transcriptRef.current = ''
       setUserMessage('')
       try {
-        recognition.start()
+        // Add check to ensure recognition isn't already running
+        if (recognition.state !== 'running') {
+          recognition.start()
+        } else {
+          console.log('Recognition is already running, stopping first')
+          recognition.stop()
+          // Add a small delay before restarting
+          setTimeout(() => {
+            try {
+              recognition.start()
+            } catch (error) {
+              console.error('Error restarting recognition:', error)
+            }
+          }, 100)
+        }
       } catch (error) {
         console.error('Error starting recognition:', error)
+        // If the error was due to recognition already running, we should update our state
+        if (error instanceof DOMException && error.name === 'InvalidStateError') {
+          isListeningRef.current = true
+          setIsListening(true)
+        }
       }
       isListeningRef.current = true
       setIsListening(true)
@@ -380,7 +399,7 @@ export const MessageInputContainer = ({
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Alt') {
+      if (e.key === 'Alt' && isListeningRef.current) {
         stopListening()
       }
     }
@@ -429,8 +448,8 @@ export const MessageInputContainer = ({
     console.log(`ユーザー検出: ${userId}, 新規ユーザー: ${isNewUser}`)
     currentUserIdRef.current = userId
     
-    // 新規ユーザーかつ自動音声入力が有効な場合
-    if (isNewUser && enableAutoVoiceStart) {
+    // 自動音声入力が有効な場合
+    if (enableAutoVoiceStart) {
       console.log('新規ユーザー検出: 音声入力を自動開始')
       
       // 現在音声入力中なら一度停止する
@@ -443,13 +462,28 @@ export const MessageInputContainer = ({
         startListening()
       }, 1000)
     }
-  }, [enableAutoVoiceStart])
+  }, [enableAutoVoiceStart, startListening, stopListening])
+
+  // ユーザーが検出されなくなった時のハンドラ
+  const handleUserDisappeared = useCallback(() => {
+    console.log('ユーザーが検出されなくなりました')
+    
+    // ユーザーIDをクリア
+    currentUserIdRef.current = null
+    
+    // 音声入力中なら停止する
+    if (isListeningRef.current) {
+      console.log('ユーザー不在: 音声入力を停止')
+      stopListening()
+    }
+  }, [stopListening])
 
   return (
     <>
       {/* カメラモニターをコンポーネントとして埋め込む */}
       <CameraMonitor 
         onUserDetected={handleUserDetected}
+        onUserDisappeared={handleUserDisappeared}
         pollInterval={3000} // 3秒ごとにチェック
       />
       
