@@ -185,10 +185,20 @@ export const MessageInputContainer = ({
         clearTimeout(noSpeechTimeout)
       }
 
+      // // 音声認識終了時のハンドラを追加
+      // newRecognition.onend = () => {
+      //   clearTimeout(noSpeechTimeout)
+      // }
       // 音声認識終了時のハンドラを追加
       newRecognition.onend = () => {
-        clearTimeout(noSpeechTimeout)
-      }
+        clearTimeout(noSpeechTimeout);
+
+        // isListeningRef.current が true ならば再開
+        if (isListeningRef.current) {
+          console.log("Speech recognition ended. Restarting...");
+          newRecognition.start();
+        }
+      };
 
       newRecognition.onresult = (event) => {
         if (!isListeningRef.current) return
