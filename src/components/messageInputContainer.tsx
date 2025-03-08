@@ -104,6 +104,7 @@ export const MessageInputContainer = ({
           // Set up transcript callback before starting
           cammicRef.current.setTranscriptCallback((transcript: string) => {
             setUserMessage(transcript);
+            setCurrentTranscript(transcript);
 
             if (prev_length > 0 && prev_length !== transcript.length) {
               setTimeout(() => {
@@ -113,11 +114,14 @@ export const MessageInputContainer = ({
                     handleSendMessage(transcript);
                     cammicRef.current.stop();
 
-                    setTimeout(() => {
-                      if (cammicRef.current) {
-                        cammicRef.current.start();
-                      }
-                    }, 1000);
+                    // Only restart recording if a user is still detected
+                    if (currentUserIdRef.current) {
+                      setTimeout(() => {
+                        if (cammicRef.current) {
+                          cammicRef.current.start();
+                        }
+                      }, 1000);
+                    }
                   }
                 }
               }, 1000);
@@ -125,9 +129,8 @@ export const MessageInputContainer = ({
             prev_length = transcript.length;
           });
 
-          // Attempt to start with proper error handling
-          await cammicRef.current.start();
-          console.log("cammicApp initialized successfully");
+          // Don't auto-start - we'll start when a user is detected
+          console.log("cammicApp initialized successfully, waiting for user detection");
         } catch (error) {
           if (error instanceof Error) {
             if (error.message.includes('permission denied')) {
@@ -220,6 +223,7 @@ export const MessageInputContainer = ({
       transcriptRef.current = ''
       setUserMessage('')
       try {
+
         // Add check to ensure recognition isn't already running
         if (recognition.state !== 'running') {
           recognition.start()
@@ -422,9 +426,21 @@ export const MessageInputContainer = ({
     const messageToSend = transcriptText || userMessage.trim();
     
     if (messageToSend && typeof onChatProcessStart === 'function') {
-      console.log('Sending message:', messageToSend);
-      onChatProcessStart(messageToSend);
-      setUserMessage('');
+      try {
+        console.log('Sending message:', messageToSend);
+        onChatProcessStart(messageToSend);
+        setUserMessage('');
+      } catch (error) {
+        console.error('Error sending message:', error);
+        // Handle circular reference error
+        if (error instanceof TypeError && error.message.includes('circular')) {
+          toastStore.getState().addToast({
+            message: t('Toasts.CircularReferenceError'),
+            type: 'error',
+            tag: 'circular-reference-error',
+          });
+        }
+      }
     } else {
       console.error('Message is empty or onChatProcessStart is not a function', {
         userMessage,
@@ -445,38 +461,57 @@ export const MessageInputContainer = ({
 
   // ユーザー検出時のハンドラ
   const handleUserDetected = useCallback((userId: string, isNewUser: boolean) => {
-    console.log(`ユーザー検出: ${userId}, 新規ユーザー: ${isNewUser}`)
-    currentUserIdRef.current = userId
+    console.log(`ユーザー検出: ${userId}, 新規ユーザー: ${isNewUser}`);
+    currentUserIdRef.current = userId;
     
-    // 自動音声入力が有効な場合
+    // Start cammic recording when user is detected
+    if (cammicRef.current) {
+      console.log('ユーザー検出: cammic録音を開始');
+      cammicRef.current.start().catch(err => {
+        console.error('Failed to start cammic recording:', err);
+      });
+    } else {
+      console.warn('cammicRef.current is null, cannot start recording');
+    }
+    
+    // 自動音声入力が有効な場合は従来のWeb Speech APIも開始
     if (enableAutoVoiceStart) {
-      console.log('新規ユーザー検出: 音声入力を自動開始')
+      console.log('新規ユーザー検出: Web Speech API音声入力を自動開始');
       
       // 現在音声入力中なら一度停止する
       if (isListeningRef.current) {
-        stopListening()
+        stopListening();
       }
       
       // 少し遅延させて音声入力開始
       setTimeout(() => {
-        startListening()
-      }, 1000)
+        startListening();
+      }, 1000);
     }
-  }, [enableAutoVoiceStart, startListening, stopListening])
+  }, [enableAutoVoiceStart, startListening, stopListening]);
 
   // ユーザーが検出されなくなった時のハンドラ
   const handleUserDisappeared = useCallback(() => {
-    console.log('ユーザーが検出されなくなりました')
+    console.log('ユーザーが検出されなくなりました');
     
     // ユーザーIDをクリア
-    currentUserIdRef.current = null
+    currentUserIdRef.current = null;
     
-    // 音声入力中なら停止する
-    if (isListeningRef.current) {
-      console.log('ユーザー不在: 音声入力を停止')
-      stopListening()
+    // Stop cammic recording when user disappears
+    if (cammicRef.current) {
+      console.log('ユーザー不在: cammic録音を停止');
+      cammicRef.current.stop();
+      // Clear the transcript
+      setCurrentTranscript('');
+      setUserMessage('');
     }
-  }, [stopListening])
+    
+    // 音声入力中なら停止する (Web Speech API)
+    if (isListeningRef.current) {
+      console.log('ユーザー不在: Web Speech API音声入力を停止');
+      stopListening();
+    }
+  }, [stopListening]);
 
   return (
     <>
