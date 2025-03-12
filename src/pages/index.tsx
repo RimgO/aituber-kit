@@ -36,7 +36,7 @@ const Home = () => {
   const handleUserDetected = (userId: string, newUser: boolean) => {
     setCurrentUserId(userId)
     console.log('ユーザー検出:', userId)
-    if(userId !== "unKnown") {
+    if(userId !== "unKnown" || !(userId.endsWith("null"))) { //nullで終わる場合も不明なユーザーとして扱う
       console.log('ユーザーID:', userId)
       setIsNewUser(newUser)
     }
@@ -44,6 +44,7 @@ const Home = () => {
     // 新規ユーザー検出時の追加処理があればここに記述
     if (newUser) {
       console.log('新しいユーザーを歓迎する処理を実行')
+      // 
     }
   }
 

@@ -39,6 +39,7 @@ export const MessageInputContainer = ({
   // ユーザーID管理用
   const currentUserIdRef = useRef<string | null>(null)
   const [enableAutoVoiceStart, setEnableAutoVoiceStart] = useState(true)
+  const prevTranscriptLengthRef = useRef(0)
 
   const { t } = useTranslation()
 
@@ -88,7 +89,6 @@ export const MessageInputContainer = ({
       console.log("Initializing cammicApp");
       if (!cammicRef.current) {
         try {
-          let prev_length = currentTranscript.length;
           // インスタンス作成前にログを追加
           console.log("Creating new cammicApp instance...");
           const cammicInstance = new cammicApp();
@@ -106,9 +106,9 @@ export const MessageInputContainer = ({
             setUserMessage(transcript);
             setCurrentTranscript(transcript);
 
-            if (prev_length > 0 && prev_length !== transcript.length) {
+            if (prevTranscriptLengthRef.current > 0 && prevTranscriptLengthRef.current !== transcript.length) {
               setTimeout(() => {
-                if (prev_length === transcript.length) {
+                if (prevTranscriptLengthRef.current === transcript.length) {
                   if (cammicRef.current) {
                     // Use the transcript directly instead of relying on state
                     handleSendMessage(transcript);
@@ -126,7 +126,7 @@ export const MessageInputContainer = ({
                 }
               }, 1000);
             }
-            prev_length = transcript.length;
+            prevTranscriptLengthRef.current = transcript.length;
           });
 
           // Don't auto-start - we'll start when a user is detected
@@ -465,7 +465,8 @@ export const MessageInputContainer = ({
     currentUserIdRef.current = userId;
     
     // Start cammic recording when user is detected
-    if (cammicRef.current) {
+    // userIdがmaleで終わらない場合は録音を開始しない
+    if (cammicRef.current && userId.endsWith('male')) {
       console.log('ユーザー検出: cammic録音を開始');
       cammicRef.current.start().catch(err => {
         console.error('Failed to start cammic recording:', err);

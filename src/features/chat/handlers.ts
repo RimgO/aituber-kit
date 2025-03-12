@@ -646,20 +646,17 @@ export const updateUserId = (userId: string, callback?: (userId: string) => void
 /**
  * カメラAPIからユーザーIDを取得する
  * @param callback ユーザーID取得後に実行するコールバック
- * @param apiUrl カメラAPIのURL（デフォルト: http://localhost:8000/data/）
  */
 export const fetchUserIdFromCamera = async (
-  callback?: (userId: string) => void,
-  apiUrl: string = 'http://localhost:8888/data/'
-): Promise<string | null> => {
+  callback?: (userId: string) => void): Promise<string | null> => {
   try {
-    const response = await fetch(apiUrl)
-    
+    const response = await fetch('http://localhost:8888/data/')
     if (!response.ok) {
       throw new Error(`カメラAPIリクエスト失敗: ${response.status} ${response.statusText}`)
     }
     
     const data = await response.json()
+    //console.log('Camera response-data:', data) // for debug
     
     // 認識状態の確認 - recognizestateがfalseならユーザーなし
     if (data.recognizestate === false) {

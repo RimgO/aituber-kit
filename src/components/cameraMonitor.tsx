@@ -4,14 +4,14 @@ import settingsStore from '@/features/stores/settings'
 
 type CameraMonitorProps = {
   onUserDetected?: (userId: string, isNewUser: boolean) => void
+  onUserDisappeared?: () => void
   pollInterval?: number // ポーリング間隔（ミリ秒）
-  apiUrl?: string
 }
 
 export const CameraMonitor = ({
   onUserDetected,
+  onUserDisappeared,
   pollInterval = 5000, // デフォルトは5秒ごと
-  apiUrl = 'http://localhost:8888/data/'
 }: CameraMonitorProps) => {
   const [isMonitoring, setIsMonitoring] = useState(false)
   const previousUserIdRef = useRef<string | null>(null)
@@ -19,7 +19,8 @@ export const CameraMonitor = ({
 
   const checkForUserChanges = useCallback(async () => {
     try {
-      const userId = await fetchUserIdFromCamera(undefined, apiUrl)
+      const userId = await fetchUserIdFromCamera(undefined)
+      //console.log('ユーザーID:', userId) // for debug
       
       // ユーザーIDが取得できた場合
       if (userId) {
@@ -40,10 +41,20 @@ export const CameraMonitor = ({
           }
         }
       }
+      else {
+        // ユーザーIDが取得できなかった場合
+        console.log('ユーザー消失検出')
+        previousUserIdRef.current = null
+        
+        // コールバック実行
+        if (onUserDisappeared) {
+          onUserDisappeared()
+        }
+      } 
     } catch (error) {
       console.error('カメラAPIからのユーザー検出エラー:', error)
     }
-  }, [apiUrl, onUserDetected])
+  }, [onUserDetected,onUserDisappeared])
 
   // モニタリング開始
   const startMonitoring = useCallback(() => {
