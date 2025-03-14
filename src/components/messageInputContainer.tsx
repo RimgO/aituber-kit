@@ -38,6 +38,8 @@ export const MessageInputContainer = ({
   const [currentTranscript, setCurrentTranscript] = useState(initialTranscript || '')
   // ユーザーID管理用
   const currentUserIdRef = useRef<string | null>(null)
+  const prevUserIdRef = useRef<string | null>(null);
+
   const [enableAutoVoiceStart, setEnableAutoVoiceStart] = useState(true)
   const prevTranscriptLengthRef = useRef(0)
 
@@ -475,21 +477,18 @@ export const MessageInputContainer = ({
       console.warn('cammicRef.current is null, cannot start recording');
     }
     
-    // 自動音声入力が有効な場合は従来のWeb Speech APIも開始
-    if (enableAutoVoiceStart) {
-      console.log('新規ユーザー検出: Web Speech API音声入力を自動開始');
-      
-      // 現在音声入力中なら一度停止する
-      if (isListeningRef.current) {
-        stopListening();
+    // 新規ユーザーではなく、前回と異なるユーザーの場合は、自動的にシステムがメッセージを送信する
+    // Add this with other useRef declarations at the top of the component:
+
+    // Then replace the selection with:
+      if (!isNewUser && userId !== prevUserIdRef.current && !enableAutoVoiceStart) {
+        onChatProcessStart("既存のユーザーがいらっしゃいました。");
       }
       
-      // 少し遅延させて音声入力開始
-      setTimeout(() => {
-        startListening();
-      }, 1000);
-    }
-  }, [enableAutoVoiceStart, startListening, stopListening]);
+      // Update prevUserId after processing
+      prevUserIdRef.current = userId;
+
+  }, [startListening, stopListening, onChatProcessStart]);
 
   // ユーザーが検出されなくなった時のハンドラ
   const handleUserDisappeared = useCallback(() => {
