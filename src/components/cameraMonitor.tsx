@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { fetchUserIdFromCamera, updateUserId } from '@/features/chat/handlers'
+import { isNewUser, addUserToHistory } from '@/utils/userHistory'
 import settingsStore from '@/features/stores/settings'
 
 type CameraMonitorProps = {
@@ -25,19 +26,22 @@ export const CameraMonitor = ({
       // ユーザーIDが取得できた場合
       if (userId) {
         const prevUserId = previousUserIdRef.current
-        const isNewUser = prevUserId !== userId
+        const userIsNew = isNewUser(userId)
         
         // ユーザーIDが変更された場合
-        if (isNewUser) {
+        if (prevUserId !== userId) {
           console.log(`ユーザー変更検出: ${prevUserId || 'なし'} → ${userId}`)
           previousUserIdRef.current = userId
           
           // ユーザーIDをグローバルに更新
           updateUserId(userId)
           
+          // 履歴に追加
+          addUserToHistory(userId)
+          
           // コールバック実行
           if (onUserDetected) {
-            onUserDetected(userId, prevUserId === null || prevUserId !== userId)
+            onUserDetected(userId, userIsNew)
           }
         }
       }

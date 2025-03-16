@@ -397,9 +397,8 @@ export const handleSendChatFn = () => async (text: string) => {
     // Promptの設定を確認
     let prompt = ss.promptType
     let systemPrompt = getSystemPrompt(ss.promptType)
-    console.log(ss.promptType,systemPrompt)
+    //console.log(ss.promptType,systemPrompt) // for debug
     
-    //let systemPrompt = ss.systemPrompt
     if (ss.slideMode) {
       if (sls.isPlaying) {
         return

@@ -470,23 +470,25 @@ export const MessageInputContainer = ({
     // userIdがmaleで終わらない場合は録音を開始しない
     if (cammicRef.current && userId.endsWith('male')) {
       console.log('ユーザー検出: cammic録音を開始');
-      cammicRef.current.start().catch(err => {
-        console.error('Failed to start cammic recording:', err);
-      });
-    } else {
-      console.warn('cammicRef.current is null, cannot start recording');
+      console.log('isNewUser/enableAutoVoiceStart/userId,prevUserId:', isNewUser, enableAutoVoiceStart, userId,prevUserIdRef.current);
+      //既存ユーザーで前回と異なるユーザーの場合は、自動的にシステムがメッセージを送信する
+      if (!isNewUser  && userId !== prevUserIdRef.current) {
+        console.log('ユーザー検出: 既存ユーザーとの再会');
+
+        onChatProcessStart("ユーザーがいらっしゃいました。");
+      } 
+      // 音声録音を開始するかどうかは継続検討
+      if(true){
+        cammicRef.current.start().catch(err => {
+          console.error('Failed to start cammic recording:', err);
+        });
+      } else {
+        console.warn('cammicRef.current is null, cannot start recording');
+      }
     }
     
-    // 新規ユーザーではなく、前回と異なるユーザーの場合は、自動的にシステムがメッセージを送信する
-    // Add this with other useRef declarations at the top of the component:
-
-    // Then replace the selection with:
-      if (!isNewUser && userId !== prevUserIdRef.current && !enableAutoVoiceStart) {
-        onChatProcessStart("既存のユーザーがいらっしゃいました。");
-      }
-      
-      // Update prevUserId after processing
-      prevUserIdRef.current = userId;
+    // Update prevUserId after processing
+    prevUserIdRef.current = userId;
 
   }, [startListening, stopListening, onChatProcessStart]);
 
