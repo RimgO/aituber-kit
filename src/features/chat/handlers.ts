@@ -470,7 +470,7 @@ export const handleSendChatFn = () => async (text: string) => {
     ]
 
     try {
-      console.log('processAIResponse:', messages)
+      console.log('processAIResponse:', messages) // for debug
       await processAIResponse(messageLog, messages)
     } catch (e) {
       console.error(e)
