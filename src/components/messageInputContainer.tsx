@@ -42,6 +42,8 @@ export const MessageInputContainer = ({
 
   const [enableAutoVoiceStart, setEnableAutoVoiceStart] = useState(true)
   const prevTranscriptLengthRef = useRef(0)
+  const [isArriveMessageDone, setIsArriveMessageDone] = useState(false)
+  const [isLeaveMessageDone, setIsLeaveMessageDone] = useState(false)
 
   const { t } = useTranslation()
 
@@ -227,7 +229,7 @@ export const MessageInputContainer = ({
       try {
 
         // Add check to ensure recognition isn't already running
-        if (recognition.state !== 'running') {
+        if (recognition && !isListeningRef.current) {
           recognition.start()
         } else {
           console.log('Recognition is already running, stopping first')
@@ -464,21 +466,32 @@ export const MessageInputContainer = ({
   // ユーザー検出時のハンドラ
   const handleUserDetected = useCallback((userId: string, isNewUser: boolean) => {
     console.log(`ユーザー検出: ${userId}, 新規ユーザー: ${isNewUser}`);
+    
+    // Check if userId ends with 'null_null' and treat it as detection failure
+    if (userId.endsWith('null_null')) {
+      console.warn('Invalid user detected, ignoring:', userId);
+      return;
+    }
+  
     currentUserIdRef.current = userId;
     
     // Start cammic recording when user is detected
-    // userIdがmaleで終わらない場合は録音を開始しない
     if (cammicRef.current && userId.endsWith('male')) {
       console.log('ユーザー検出: cammic録音を開始');
-      console.log('isNewUser/enableAutoVoiceStart/userId,prevUserId:', isNewUser, enableAutoVoiceStart, userId,prevUserIdRef.current);
+      console.log('isNewUser/enableAutoVoiceStart/userId,prevUserId:', isNewUser, enableAutoVoiceStart, userId, prevUserIdRef.current);
+      setIsLeaveMessageDone(false);
+      
       //既存ユーザーで前回と異なるユーザーの場合は、自動的にシステムがメッセージを送信する
-      if (!isNewUser  && userId !== prevUserIdRef.current) {
+      if (!isNewUser && userId !== prevUserIdRef.current) {
         console.log('ユーザー検出: 既存ユーザーとの再会');
-
-        onChatProcessStart("ユーザーがいらっしゃいました。");
+        if(!isArriveMessageDone){
+          onChatProcessStart("ユーザーがいらっしゃいました。");
+          setIsArriveMessageDone(true);
+        }
       } 
+      
       // 音声録音を開始するかどうかは継続検討
-      if(true){
+      if (true) {
         cammicRef.current.start().catch(err => {
           console.error('Failed to start cammic recording:', err);
         });
@@ -489,13 +502,19 @@ export const MessageInputContainer = ({
     
     // Update prevUserId after processing
     prevUserIdRef.current = userId;
-
+  
   }, [startListening, stopListening, onChatProcessStart]);
 
   // ユーザーが検出されなくなった時のハンドラ
   const handleUserDisappeared = useCallback(() => {
-    console.log('ユーザーが検出されなくなりました');
-    
+    console.log('ユーザーがいなくなりました。');
+    setIsArriveMessageDone(false);
+
+    if (!isLeaveMessageDone) {
+      //解除すると連続送信してしまう不具合があるため暫定コメントアウト
+      //onChatProcessStart("ユーザーがいなくなりました。");
+      setIsLeaveMessageDone(true);
+    }
     // ユーザーIDをクリア
     currentUserIdRef.current = null;
     
@@ -513,7 +532,7 @@ export const MessageInputContainer = ({
       console.log('ユーザー不在: Web Speech API音声入力を停止');
       stopListening();
     }
-  }, [stopListening]);
+  }, [stopListening, isLeaveMessageDone, onChatProcessStart]);
 
   return (
     <>

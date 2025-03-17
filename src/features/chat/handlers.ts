@@ -666,7 +666,7 @@ export const fetchUserIdFromCamera = async (
     // recognizednameフィールドをユーザーIDとして使用
     const userId = data.recognizedname
     
-    if (userId) {
+    if (userId !== undefined && userId !== 'lost') {
       // ユーザーIDの変更を処理
       const updated = updateUserId(userId, () => {
         // ユーザーID変更時の特別な処理をここに

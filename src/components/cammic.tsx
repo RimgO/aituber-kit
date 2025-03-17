@@ -1,4 +1,5 @@
 import React from 'react';
+import { PersonDetection } from './personDetection';
 
 // コンポーネントではなくクラスとして定義
 export class CammicApp {
@@ -7,8 +8,10 @@ export class CammicApp {
   private currentTranscript: string = '';
   private audioStream: MediaStream | null = null;
   private isRecognizing: boolean = false; // Add a more reliable state tracking variable
+  private personDetection: PersonDetection;
 
   constructor() {
+    this.personDetection = new PersonDetection();
     this.initializeSpeechRecognition();
   }
 
@@ -106,6 +109,14 @@ export class CammicApp {
       } else {
         console.log('Speech recognition is already running');
         // Don't throw an error here, just log and continue
+      }
+
+      // 人物検出を開始
+      this.personDetection.detectPerson();
+      if (this.personDetection.isPersonPresent()) {
+        console.log('Person detected');
+      } else {
+        console.log('No person detected');
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'InvalidStateError') {
