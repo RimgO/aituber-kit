@@ -508,7 +508,8 @@ export const MessageInputContainer = ({
   // ユーザーが検出されなくなった時のハンドラ
   const handleUserDisappeared = useCallback(() => {
     console.log('ユーザーがいなくなりました。');
-    setIsArriveMessageDone(false);
+    //解除すると連続送信してしまう不具合があるため暫定コメントアウト
+    //setIsArriveMessageDone(false);
 
     if (!isLeaveMessageDone) {
       //解除すると連続送信してしまう不具合があるため暫定コメントアウト
