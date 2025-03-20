@@ -116,6 +116,9 @@ export const MessageInputContainer = ({
                   if (cammicRef.current) {
                     // Use the transcript directly instead of relying on state
                     handleSendMessage(transcript);
+                    transcriptRef.current = ''; // transcript をリセット
+                    setUserMessage(''); // UI 上のメッセージもリセット
+                    prevTranscriptLengthRef.current = 0;
                     cammicRef.current.stop();
 
                     // Only restart recording if a user is still detected
@@ -124,11 +127,11 @@ export const MessageInputContainer = ({
                         if (cammicRef.current) {
                           cammicRef.current.start();
                         }
-                      }, 1000);
+                      }, NO_SPEECH_TIMEOUT); // ここで変数を使用
                     }
                   }
                 }
-              }, 1000);
+              }, NO_SPEECH_TIMEOUT); // ここで変数を使用
             }
             prevTranscriptLengthRef.current = transcript.length;
           });
