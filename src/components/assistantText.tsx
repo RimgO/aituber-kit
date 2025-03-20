@@ -10,11 +10,19 @@ export const AssistantText = ({ message }: { message: string }) => {
         <div className="bg-white rounded-8">
           {showCharacterName && (
             <div className="px-24 py-8 bg-secondary rounded-t-8 text-white font-bold tracking-wider">
-              {characterName}
+                {characterName}
             </div>
           )}
           <div className="px-24 py-16">
-            <div className="line-clamp-4 text-secondary typography-16 font-bold">
+            <div
+              className="line-clamp-4 text-secondary typography-48 font-bold"
+              style={{
+                fontSize: '48px', // 16px × 3 = 48px
+                wordWrap: 'break-word', // 長い単語を折り返し
+                wordBreak: 'break-word', // 単語の途中で改行
+                overflowWrap: 'break-word', // レスポンシブ対応
+              }}
+            >
               {message.replace(/\[([a-zA-Z]*?)\]/g, '')}
             </div>
           </div>
