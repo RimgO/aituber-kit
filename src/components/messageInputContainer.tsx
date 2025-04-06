@@ -42,8 +42,6 @@ export const MessageInputContainer = ({
 
   const [enableAutoVoiceStart, setEnableAutoVoiceStart] = useState(true)
   const prevTranscriptLengthRef = useRef(0)
-  const [isArriveMessageDone, setIsArriveMessageDone] = useState(false)
-  const [isLeaveMessageDone, setIsLeaveMessageDone] = useState(false)
 
   const { t } = useTranslation()
 
@@ -120,15 +118,6 @@ export const MessageInputContainer = ({
                     setUserMessage(''); // UI 上のメッセージもリセット
                     prevTranscriptLengthRef.current = 0;
                     cammicRef.current.stop();
-
-                    // Only restart recording if a user is still detected
-                    if (currentUserIdRef.current) {
-                      setTimeout(() => {
-                        if (cammicRef.current) {
-                          cammicRef.current.start();
-                        }
-                      }, NO_SPEECH_TIMEOUT); // ここで変数を使用
-                    }
                   }
                 }
               }, NO_SPEECH_TIMEOUT); // ここで変数を使用
@@ -434,9 +423,33 @@ export const MessageInputContainer = ({
     
     if (messageToSend && typeof onChatProcessStart === 'function') {
       try {
+        // Stop recording before sending message
+        if (cammicRef.current) {
+          console.log('Stopping cammic recording before sending message');
+          cammicRef.current.stop();
+        }
+
         console.log('Sending message:', messageToSend);
         onChatProcessStart(messageToSend);
         setUserMessage('');
+
+        // Listen for voice playback completion
+        const wsManager = webSocketStore.getState().wsManager;
+        if (wsManager) {
+          const handleVoiceComplete = (event: MessageEvent) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'voice.complete') {
+              // Start recording again after voice playback
+              if (cammicRef.current && currentUserIdRef.current) {
+                console.log('Voice playback complete, resuming cammic recording');
+                cammicRef.current.start();
+              }
+              // Remove the event listener
+              wsManager.websocket?.removeEventListener('message', handleVoiceComplete);
+            }
+          };
+          wsManager.websocket?.addEventListener('message', handleVoiceComplete);
+        }
       } catch (error) {
         console.error('Error sending message:', error);
         // Handle circular reference error
@@ -471,7 +484,7 @@ export const MessageInputContainer = ({
     console.log(`ユーザー検出: ${userId}, 新規ユーザー: ${isNewUser}`);
   
     // 無効なユーザーIDを無視
-    if (userId.endsWith('null_null')) {
+    if (userId.endsWith('null') || userId === 'not_detected') {
       console.warn('Invalid user detected, ignoring:', userId);
       return;
     }
@@ -530,6 +543,41 @@ export const MessageInputContainer = ({
       }
     }
   }, [stopListening]);
+
+  useEffect(() => {
+    const wsManager = webSocketStore.getState().wsManager;
+    if (wsManager?.websocket) {
+      // Handle voice start
+      const handleVoiceStart = (event: MessageEvent) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'voice.start') {
+          if (cammicRef.current) {
+            console.log('Voice playback starting, stopping cammic recording');
+            cammicRef.current.stop();
+          }
+        }
+      };
+
+      // Handle voice complete
+      const handleVoiceComplete = (event: MessageEvent) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'voice.complete') {
+          if (cammicRef.current && currentUserIdRef.current) {
+            console.log('Voice playback complete, resuming cammic recording');
+            cammicRef.current.start();
+          }
+        }
+      };
+
+      wsManager.websocket.addEventListener('message', handleVoiceStart);
+      wsManager.websocket.addEventListener('message', handleVoiceComplete);
+
+      return () => {
+        wsManager.websocket.removeEventListener('message', handleVoiceStart);
+        wsManager.websocket.removeEventListener('message', handleVoiceComplete);
+      };
+    }
+  }, []);
 
   return (
     <>

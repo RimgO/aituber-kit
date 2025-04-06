@@ -9,6 +9,9 @@ export class CammicApp {
   private audioStream: MediaStream | null = null;
   private isRecognizing: boolean = false; // Add a more reliable state tracking variable
   private personDetection: PersonDetection;
+  private lastDetectionTime: number = 0;
+  private lastDetectionResult: boolean = false;
+  private readonly DETECTION_INTERVAL: number = 2000; // 2秒
 
   constructor() {
     this.personDetection = new PersonDetection();
@@ -111,12 +114,19 @@ export class CammicApp {
         // Don't throw an error here, just log and continue
       }
 
-      // 人物検出を開始
-      this.personDetection.detectPerson();
-      if (this.personDetection.isPersonPresent()) {
-        console.log('Person detected');
-      } else {
-        console.log('No person detected');
+      // 人物検出の処理を改善
+      const currentTime = Date.now();
+      if (currentTime - this.lastDetectionTime >= this.DETECTION_INTERVAL) {
+        this.personDetection.detectPerson();
+        const isPresent = this.personDetection.isPersonPresent();
+        
+        // 前回の結果と異なる場合のみログを出力
+        if (isPresent !== this.lastDetectionResult) {
+          console.log(isPresent ? 'Person detected' : 'No person detected');
+          this.lastDetectionResult = isPresent;
+        }
+        
+        this.lastDetectionTime = currentTime;
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'InvalidStateError') {
