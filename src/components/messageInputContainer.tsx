@@ -272,6 +272,26 @@ export const MessageInputContainer = ({
     }
   }, [recognition, audioContext, realtimeAPIMode])
 
+  // Add a safe JSON stringifier utility function to the component
+  const safeStringify = useCallback((obj: any): string => {
+    try {
+      // Create a new object without circular references
+      const seen = new WeakSet();
+      return JSON.stringify(obj, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular Reference]';
+          }
+          seen.add(value);
+        }
+        return value;
+      });
+    } catch (error) {
+      console.error('Failed to stringify object:', error);
+      return JSON.stringify({ error: 'Failed to stringify object' });
+    }
+  }, []);
+
   const sendAudioBuffer = useCallback(() => {
     if (audioBufferRef.current && audioBufferRef.current.length > 0) {
       const base64Chunk = base64EncodeAudio(audioBufferRef.current)
@@ -302,28 +322,37 @@ export const MessageInputContainer = ({
         }
 
         if (sendContent.length > 0) {
-          wsManager.websocket.send(
-            JSON.stringify({
+          try {
+            const messageData = {
               type: 'conversation.item.create',
               item: {
                 type: 'message',
                 role: 'user',
                 content: sendContent,
               },
-            })
-          )
-          wsManager.websocket.send(
-            JSON.stringify({
-              type: 'response.create',
-            })
-          )
+            };
+            
+            const responseData = {
+              type: 'response.create'
+            };
+            
+            wsManager.websocket.send(JSON.stringify(messageData));
+            wsManager.websocket.send(JSON.stringify(responseData));
+          } catch (error) {
+            console.error('Error sending WebSocket message:', error);
+            toastStore.getState().addToast({
+              message: t('Toasts.WebSocketError'),
+              type: 'error',
+              tag: 'websocket-send-error',
+            });
+          }
         }
       }
       audioBufferRef.current = null // 送信後にバッファをクリア
     } else {
       console.error('音声バッファが空です')
     }
-  }, [])
+  }, [t]);
 
   const stopListening = useCallback(async () => {
     isListeningRef.current = false
@@ -429,22 +458,45 @@ export const MessageInputContainer = ({
           cammicRef.current.stop();
         }
 
-        console.log('Sending message:', messageToSend);
-        onChatProcessStart(messageToSend);
+        // Create a simple string message - avoid complex objects
+        const simpleMessage = String(messageToSend).trim();
+        console.log('Sending message:', simpleMessage);
+        
+        // Use setTimeout to break any potential stack recursion
+        setTimeout(() => {
+          try {
+            onChatProcessStart(simpleMessage);
+          } catch (error) {
+            console.error('Error in onChatProcessStart:', error);
+            toastStore.getState().addToast({
+              message: t('Toasts.MessageSendError'),
+              type: 'error',
+              tag: 'message-send-error',
+            });
+          }
+        }, 0);
+        
         setUserMessage('');
 
-        // Listen for voice playback completion
+        // Listen for voice playback completion with improved error handling
         const wsManager = webSocketStore.getState().wsManager;
-        if (wsManager) {
+        if (wsManager?.websocket) {
           const handleVoiceComplete = (event: MessageEvent) => {
-            const data = JSON.parse(event.data);
-            if (data.type === 'voice.complete') {
-              // Start recording again after voice playback
-              if (cammicRef.current && currentUserIdRef.current) {
-                console.log('Voice playback complete, resuming cammic recording');
-                cammicRef.current.start();
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === 'voice.complete') {
+                // Start recording again after voice playback
+                if (cammicRef.current && currentUserIdRef.current) {
+                  console.log('Voice playback complete, resuming cammic recording');
+                  cammicRef.current.start().catch(err => {
+                    console.error('Failed to resume cammic recording:', err);
+                  });
+                }
+                // Remove the event listener
+                wsManager.websocket?.removeEventListener('message', handleVoiceComplete);
               }
-              // Remove the event listener
+            } catch (error) {
+              console.error('Error handling voice complete:', error);
               wsManager.websocket?.removeEventListener('message', handleVoiceComplete);
             }
           };
@@ -452,23 +504,19 @@ export const MessageInputContainer = ({
         }
       } catch (error) {
         console.error('Error sending message:', error);
-        // Handle circular reference error
-        if (error instanceof TypeError && error.message.includes('circular')) {
-          toastStore.getState().addToast({
-            message: t('Toasts.CircularReferenceError'),
-            type: 'error',
-            tag: 'circular-reference-error',
-          });
-        }
+        toastStore.getState().addToast({
+          message: t('Toasts.MessageSendError'),
+          type: 'error',
+          tag: 'message-send-error',
+        });
       }
     } else {
       console.error('Message is empty or onChatProcessStart is not a function', {
-        userMessage,
-        transcriptText,
+        messageLength: messageToSend?.length,
         isFunction: typeof onChatProcessStart === 'function'
       });
     }
-  }, [userMessage, onChatProcessStart])
+  }, [userMessage, onChatProcessStart, t]);
 
   // メッセージ入力
   const handleInputChange = useCallback(
@@ -496,9 +544,21 @@ export const MessageInputContainer = ({
       // 既存ユーザーで前回と異なるユーザーの場合はメッセージを送信
       if (!isNewUser) {
         console.log('ユーザー検出: ユーザーとの再会'); //for debug
-        if(prevUserIdRef.current !== userId) {
+        if(prevUserIdRef.current !== userId && prevUserIdRef.current !== null) {
           console.log('ユーザー検出: 既存ユーザーとの再会');
-          onChatProcessStart("ユーザーがいらっしゃいました。");
+          // Use setTimeout to break any potential stack recursion
+          setTimeout(() => {
+            try {
+              onChatProcessStart("ユーザーがいらっしゃいました。");
+            } catch (error) {
+              console.error('Error in onChatProcessStart:', error);
+              toastStore.getState().addToast({
+                message: t('Toasts.MessageSendError'),
+                type: 'error',
+                tag: 'message-send-error',
+              });
+            }
+          }, 0);
         } else {
           console.log('ユーザー検出: 前回と同じユーザー');
         }
@@ -517,13 +577,26 @@ export const MessageInputContainer = ({
       // 前回のユーザーIDを更新
       prevUserIdRef.current = userId;
     }
-  }, [onChatProcessStart]);
+  }, [onChatProcessStart, t]);
 
   // ユーザーが検出されなくなった時のハンドラ
   const handleUserDisappeared = useCallback(() => {
     if (currentUserIdRef.current) {
       console.log('ユーザーがいなくなりました。');
-      onChatProcessStart("ユーザーがいなくなりました。");
+      
+      // Use setTimeout to break any potential stack recursion
+      setTimeout(() => {
+        try {
+          onChatProcessStart("ユーザーがいなくなりました。");
+        } catch (error) {
+          console.error('Error in onChatProcessStart:', error);
+          toastStore.getState().addToast({
+            message: t('Toasts.MessageSendError'),
+            type: 'error',
+            tag: 'message-send-error',
+          });
+        }
+      }, 0);
 
       // ユーザーIDをクリア
       currentUserIdRef.current = null;
@@ -542,30 +615,40 @@ export const MessageInputContainer = ({
         stopListening();
       }
     }
-  }, [stopListening]);
+  }, [stopListening, onChatProcessStart, t]);
 
   useEffect(() => {
     const wsManager = webSocketStore.getState().wsManager;
     if (wsManager?.websocket) {
       // Handle voice start
       const handleVoiceStart = (event: MessageEvent) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'voice.start') {
-          if (cammicRef.current) {
-            console.log('Voice playback starting, stopping cammic recording');
-            cammicRef.current.stop();
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'voice.start') {
+            if (cammicRef.current) {
+              console.log('Voice playback starting, stopping cammic recording');
+              cammicRef.current.stop();
+            }
           }
+        } catch (error) {
+          console.error('Error parsing message data:', error);
         }
       };
 
       // Handle voice complete
       const handleVoiceComplete = (event: MessageEvent) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'voice.complete') {
-          if (cammicRef.current && currentUserIdRef.current) {
-            console.log('Voice playback complete, resuming cammic recording');
-            cammicRef.current.start();
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'voice.complete') {
+            if (cammicRef.current && currentUserIdRef.current) {
+              console.log('Voice playback complete, resuming cammic recording');
+              cammicRef.current.start().catch(err => {
+                console.error('Failed to resume cammic recording:', err);
+              });
+            }
           }
+        } catch (error) {
+          console.error('Error parsing message data:', error);
         }
       };
 
@@ -587,7 +670,6 @@ export const MessageInputContainer = ({
         onUserDisappeared={handleUserDisappeared}
         pollInterval={3000} // 3秒ごとにチェック
       />
-      
       <div className="flex gap-2 p-2">
         <MessageInput
           userMessage={userMessage}
@@ -612,17 +694,15 @@ const resampleAudio = (
   const ratio = fromSampleRate / toSampleRate
   const newLength = Math.round(audioData.length / ratio)
   const result = new Float32Array(newLength)
-
   for (let i = 0; i < newLength; i++) {
     const position = i * ratio
     const leftIndex = Math.floor(position)
     const rightIndex = Math.ceil(position)
     const fraction = position - leftIndex
-
     if (rightIndex >= audioData.length) {
       result[i] = audioData[leftIndex]
     } else {
-      result[i] =
+      result[i] = 
         (1 - fraction) * audioData[leftIndex] + fraction * audioData[rightIndex]
     }
   }
@@ -637,8 +717,8 @@ const processAudio = (audioBuffer: AudioBuffer): Float32Array => {
 
   // モノラルに変換
   let monoData = new Float32Array(audioBuffer.length)
+  let sum = 0
   for (let i = 0; i < audioBuffer.length; i++) {
-    let sum = 0
     for (let channel = 0; channel < numChannels; channel++) {
       sum += audioBuffer.getChannelData(channel)[i]
     }
@@ -663,8 +743,8 @@ const floatTo16BitPCM = (float32Array: Float32Array) => {
 // Float32Array を base64エンコードされた PCM16 データに変換する関数
 const base64EncodeAudio = (float32Array: Float32Array) => {
   const arrayBuffer = floatTo16BitPCM(float32Array)
-  let binary = ''
   const bytes = new Uint8Array(arrayBuffer)
+  let binary = ''
   const chunkSize = 0x8000 // 32KB chunk size
   for (let i = 0; i < bytes.length; i += chunkSize) {
     binary += String.fromCharCode.apply(

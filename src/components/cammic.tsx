@@ -26,33 +26,64 @@ export class CammicApp {
         throw new Error('Speech recognition is not supported in this browser');
       }
 
-      // Get internal microphone
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const audioInputs = devices.filter(device => device.kind === 'audioinput');
-      const internalMic = audioInputs.find(device => 
-        device.label.toLowerCase().includes('built-in') || 
-        device.label.toLowerCase().includes('internal')
-      );
+      // Check if navigator and mediaDevices are available (might not be in some environments)
+      if (!navigator || !navigator.mediaDevices) {
+        console.warn('MediaDevices API not fully available, initializing recognition without audio stream');
+        // Initialize speech recognition without microphone access
+        this.recognition = new SpeechRecognition();
+        this.recognition.continuous = true;
+        this.recognition.interimResults = true;
+        this.recognition.lang = 'ja-JP';
+      } else {
+        try {
+          // Try to get audio stream with fallbacks
+          if (!navigator.mediaDevices.enumerateDevices) {
+            console.warn('enumerateDevices not available, using default audio input');
+            this.audioStream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+              }
+            });
+          } else {
+            // Get internal microphone
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioInputs = devices.filter(device => device.kind === 'audioinput');
+            const internalMic = audioInputs.find(device => 
+              device.label.toLowerCase().includes('built-in') || 
+              device.label.toLowerCase().includes('internal')
+            );
 
-      if (!internalMic) {
-        throw new Error('Internal microphone not found');
-      }
+            // If no internal mic found, fall back to default audio input
+            const audioConstraints = internalMic 
+              ? {
+                  deviceId: { exact: internalMic.deviceId },
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true
+                }
+              : {
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true
+                };
 
-      // Request microphone permissions first
-      this.audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          deviceId: { exact: internalMic.deviceId },
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
+            this.audioStream = await navigator.mediaDevices.getUserMedia({
+              audio: audioConstraints
+            });
+          }
+        } catch (mediaError) {
+          console.warn('Failed to access microphone:', mediaError);
+          console.warn('Continuing without audio input');
         }
-      });
 
-      // Initialize speech recognition after getting audio stream
-      this.recognition = new SpeechRecognition();
-      this.recognition.continuous = true;
-      this.recognition.interimResults = true;
-      this.recognition.lang = 'ja-JP';
+        // Initialize speech recognition even if we couldn't get audio access
+        this.recognition = new SpeechRecognition();
+        this.recognition.continuous = true;
+        this.recognition.interimResults = true;
+        this.recognition.lang = 'ja-JP';
+      }
 
       // Add onstart handler to confirm initialization
       this.recognition.onstart = () => {
