@@ -628,13 +628,15 @@ export const updateUserId = (userId: string, callback?: (userId: string) => void
   const ss = settingsStore.getState()
   
   if (userId && ss.userId !== userId) {
-    console.log(`ユーザーIDが変更されました: ${ss.userId} → ${userId}`)
+    console.log(`ユーザーIDが変更されました: ${ss.userId} → ${userId}`, "currenttime:", new Date().toLocaleTimeString())  
     settingsStore.setState({ userId: userId })
     
+    /*
     // ユーザーID変更後に任意の処理を実行
     if (callback) {
       callback(userId)
     }
+    */
     
     return true
   }
@@ -677,10 +679,12 @@ export const fetchUserIdFromCamera = async (
         console.log(`カメラAPIからユーザーID「${userId}」を検出しました`)
       }
       
+      /*
       // コールバックが指定されていれば実行
       if (callback) {
         callback(userId)
       }
+      */
       
       return userId
     } else {

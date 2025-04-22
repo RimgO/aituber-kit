@@ -25,12 +25,11 @@ export const CameraMonitor = ({
       
       // ユーザーIDが取得できた場合
       if (userId) {
-        const prevUserId = previousUserIdRef.current
         const userIsNew = isNewUser(userId)
         
         // ユーザーIDが変更された場合
-        if (prevUserId !== userId) {
-          console.log(`ユーザー変更検出: ${prevUserId || 'なし'} → ${userId}`)
+        if (previousUserIdRef.current !== userId) {
+          console.log(`ユーザー変更検出: ${previousUserIdRef.current || 'なし'} → ${userId}`)
           previousUserIdRef.current = userId
           
           // ユーザーIDをグローバルに更新
@@ -48,7 +47,7 @@ export const CameraMonitor = ({
       else {
         // ユーザーIDが取得できなかった場合
         console.log('ユーザー消失検出')
-        previousUserIdRef.current = null
+        //previousUserIdRef.current = null
         
         // コールバック実行
         if (onUserDisappeared) {
@@ -68,7 +67,7 @@ export const CameraMonitor = ({
     setIsMonitoring(true)
     
     // 即時に1回実行
-    checkForUserChanges()
+    //checkForUserChanges()
     
     // 定期的なポーリングを設定
     timerRef.current = setInterval(checkForUserChanges, pollInterval)
