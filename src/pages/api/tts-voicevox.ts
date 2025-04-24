@@ -41,13 +41,14 @@ export default async function handler(
           'Content-Type': 'application/json',
           Accept: 'audio/wav',
         },
-        responseType: 'stream',
+        responseType: 'arraybuffer',  // streamからarraybufferに変更
         timeout: 30000,
       }
-    )
+    );
 
-    res.setHeader('Content-Type', 'audio/wav')
-    synthesisResponse.data.pipe(res)
+    // arraybufferとして返す
+    res.setHeader('Content-Type', 'audio/wav');
+    res.status(200).send(synthesisResponse.data);
   } catch (error) {
     console.error('Error in VOICEVOX TTS:', error)
     res.status(500).json({ error: 'Internal Server Error' })

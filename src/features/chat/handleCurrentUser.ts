@@ -8,6 +8,7 @@ export const useUserTracking = (monitoringInterval = 5000) => {
   const monitoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    /*
     // Initial user ID fetch
     fetchUserIdFromCamera((userId) => {
       if (userId) {
@@ -16,6 +17,7 @@ export const useUserTracking = (monitoringInterval = 5000) => {
         console.log(`Initial user ID set: ${userId}`);
       }
     });
+    */
     
     // Set up periodic monitoring
     monitoringIntervalRef.current = setInterval(() => {

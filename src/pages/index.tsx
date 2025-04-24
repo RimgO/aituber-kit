@@ -32,22 +32,6 @@ const Home = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [isNewUser, setIsNewUser] = useState(false)
 
-  // ユーザー検出ハンドラ
-  const handleUserDetected = (userId: string, newUser: boolean) => {
-    setCurrentUserId(userId)
-    console.log('ユーザー検出:', userId)
-    if(userId !== "unKnown" || !(userId.endsWith("null"))) { //nullで終わる場合も不明なユーザーとして扱う
-      console.log('ユーザーID:', userId)
-      setIsNewUser(newUser)
-    }
-    
-    // 新規ユーザー検出時の追加処理があればここに記述
-    if (newUser) {
-      console.log('新しいユーザーを歓迎する処理を実行')
-      // 
-    }
-  }
-
   // チャット送信ハンドラ
   const handleSendChat = handleSendChatFn()
 
@@ -64,7 +48,7 @@ const Home = () => {
       <WebSocketManager />
       <YoutubeManager />
       {/* バックグラウンドでカメラ監視を実行 */}
-      <CameraMonitor onUserDetected={handleUserDetected} />
+      {/* <CameraMonitor onUserDetected={handleUserDetected} /> */}
       
       {/* メッセージ入力と送信 */}
       <MessageInputContainer onChatProcessStart={(text) => handleSendChat(text, currentUserId)} />
