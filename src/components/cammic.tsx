@@ -20,41 +20,47 @@ export class CammicApp {
 
   private async initializeSpeechRecognition() {
     try {
-      // Check if SpeechRecognition is supported
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
         throw new Error('Speech recognition is not supported in this browser');
       }
 
-      // Get internal microphone
       const devices = await navigator.mediaDevices.enumerateDevices();
       const audioInputs = devices.filter(device => device.kind === 'audioinput');
+
+      if (audioInputs.length === 0) {
+        throw new Error('No audio input devices found');
+      }
+
+      // 内蔵マイクを優先的に探す
       const internalMic = audioInputs.find(device => 
         device.label.toLowerCase().includes('built-in') || 
         device.label.toLowerCase().includes('internal')
       );
 
-      if (!internalMic) {
-        throw new Error('Internal microphone not found');
+      // 内蔵マイクがない場合は最初の外部マイクを選択
+      const selectedMic = internalMic || audioInputs[0];
+
+      if (!selectedMic) {
+        throw new Error('No valid microphone found');
       }
 
-      // Request microphone permissions first
+      console.log(`Using microphone: ${selectedMic.label}`);
+
       this.audioStream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          deviceId: { exact: internalMic.deviceId },
+          deviceId: { exact: selectedMic.deviceId },
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
         }
       });
 
-      // Initialize speech recognition after getting audio stream
       this.recognition = new SpeechRecognition();
       this.recognition.continuous = true;
       this.recognition.interimResults = true;
       this.recognition.lang = 'ja-JP';
 
-      // Add onstart handler to confirm initialization
       this.recognition.onstart = () => {
         console.log('Speech recognition started successfully');
         this.isRecognizing = true;
@@ -70,7 +76,7 @@ export class CammicApp {
           .map(result => result[0].transcript)
           .join('');
         this.currentTranscript = transcript;
-        
+
         if (this.onTranscriptCallback) {
           this.onTranscriptCallback(transcript);
         }
@@ -79,8 +85,7 @@ export class CammicApp {
       this.recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         this.isRecognizing = false;
-        
-        // Attempt to restart recognition on certain errors, but not on "aborted" or "not-allowed"
+
         if (this.recognition && event.error !== 'aborted' && event.error !== 'not-allowed') {
           setTimeout(() => {
             if (!this.isRecognizing) {
@@ -92,6 +97,11 @@ export class CammicApp {
 
     } catch (error) {
       console.error('Failed to initialize speech recognition:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      });
       throw new Error(`Speech recognition initialization failed: ${error.message}`);
     }
   }
