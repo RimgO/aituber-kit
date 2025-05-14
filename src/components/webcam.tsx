@@ -121,10 +121,6 @@ export const Webcam = () => {
       })
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        // Connect stream to CAMMICApp if initialized
-        if (cammicRef.current) {
-          cammicRef.current.setVideoStream(stream);
-        }
       }
       if (backgroundVideoRef.current && useVideoAsBackground) {
         backgroundVideoRef.current.srcObject = stream

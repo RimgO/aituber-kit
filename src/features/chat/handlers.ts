@@ -146,6 +146,7 @@ export const processAIResponse = async (
 ) => {
   homeStore.setState({ chatProcessing: true })
   let stream
+  let currentAssistantMessage = ''
 
   const hs = homeStore.getState()
   const currentSlideMessages: string[] = []
@@ -285,6 +286,7 @@ export const processAIResponse = async (
           break
         }
       }
+      console.log('receivedMessage:', receivedMessage, Date.now()) // for debug
 
       // ストリームが終了し、receivedMessageが空でない場合の処理
       if (done && receivedMessage.length > 0) {
@@ -293,7 +295,7 @@ export const processAIResponse = async (
         aiTextLog.push({ role: 'assistant', content: aiText })
         sentences.push(receivedMessage)
 
-        const currentAssistantMessage = sentences.join(' ')
+        currentAssistantMessage = sentences.join(' ')
 
         speakCharacter(
           {

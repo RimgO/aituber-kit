@@ -7,6 +7,7 @@ import {
 } from '@/features/chat/handlers'
 
 export const WebSocketManager: FC = () => {
+  console.log('WebSocketManager Mounting...')
   // ハンドラー関数を初期化
   const handleReceiveTextFromWs = handleReceiveTextFromWsFn()
   const handleReceiveTextFromRt = handleReceiveTextFromRtFn()

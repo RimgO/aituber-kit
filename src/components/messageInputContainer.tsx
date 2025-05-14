@@ -6,7 +6,7 @@ import webSocketStore from '@/features/stores/websocketStore'
 import { useTranslation } from 'react-i18next'
 import toastStore from '@/features/stores/toast'
 import cammicApp from './cammic'
-import { CameraMonitor } from './cameraMonitor'
+import { PersonDetector } from './personDetector'
 
 const NO_SPEECH_TIMEOUT = 3000
 
@@ -17,11 +17,6 @@ type Props = {
   onChatProcessStart: (text: string) => void
   initialTranscript?: string
 }
-
-// Add this outside the component at the module level
-// This guarantees the variable is shared across all invocations
-let lastUserDetectionTime = 0;
-let isUserDetectionProcessing = false;
 
 export const MessageInputContainer = ({ 
   onChatProcessStart,
@@ -43,7 +38,6 @@ export const MessageInputContainer = ({
   const [currentTranscript, setCurrentTranscript] = useState(initialTranscript || '')
   // ユーザーID管理用
   const currentUserIdRef = useRef<string | null>(null)
-  const prevUserIdRef = useRef<string | null>(null)
   const lastChatProcessTimeRef = useRef<number>(0) // Add this to track the last time onChatProcessStart was called
 
   const [enableAutoVoiceStart, setEnableAutoVoiceStart] = useState(true)
@@ -93,60 +87,72 @@ export const MessageInputContainer = ({
 
   // Add initialization effect for cammicApp
   useEffect(() => {
+    // 初期化用のフラグをコンポーネント外部のモジュール変数として追加
+    let isInitializing = false;
+
     const initializeCammic = async () => {
+      // すでに初期化中か、インスタンスが存在する場合はスキップ
+      if (isInitializing || cammicRef.current) {
+        console.log("cammicApp: すでに初期化中または初期化済みです");
+        return;
+      }
+
+      isInitializing = true;
       console.log("Initializing cammicApp");
-      if (!cammicRef.current) {
-        try {
-          // インスタンス作成前にログを追加
-          console.log("Creating new cammicApp instance...");
-          const cammicInstance = new cammicApp();
-          cammicRef.current = cammicInstance;
-          console.log("cammicApp instance created successfully");
+      
+      try {
+        // インスタンス作成前にログを追加
+        console.log("Creating new cammicApp instance...");
+        const cammicInstance = new cammicApp();
+        cammicRef.current = cammicInstance;
+        console.log("cammicApp instance created successfully");
 
-          // 初期化状態をログ出力
-          console.log("cammicApp state:", {
-            isInitialized: !!cammicRef.current,
-            instance: cammicRef.current
-          });
+        // 初期化状態をログ出力
+        console.log("cammicApp state:", {
+          isInitialized: !!cammicRef.current,
+          instance: cammicRef.current
+        });
 
-          // Set up transcript callback before starting
-          cammicRef.current.setTranscriptCallback((transcript: string) => {
-            setUserMessage(transcript);
-            setCurrentTranscript(transcript);
+        // Set up transcript callback before starting
+        cammicRef.current.setTranscriptCallback((transcript: string) => {
+          setUserMessage(transcript);
+          setCurrentTranscript(transcript);
 
-            if (prevTranscriptLengthRef.current > 0 && prevTranscriptLengthRef.current !== transcript.length) {
-              setTimeout(() => {
-                if (prevTranscriptLengthRef.current === transcript.length) {
-                  if (cammicRef.current) {
-                    // Use the transcript directly instead of relying on state
-                    handleSendMessage(transcript);
-                    transcriptRef.current = ''; // transcript をリセット
-                    setUserMessage(''); // UI 上のメッセージもリセット
-                    prevTranscriptLengthRef.current = 0;
-                    
-                    // 送信後は停止状態を維持（TTS再生時に音声認識を停止するため）
-                  }
+          if (prevTranscriptLengthRef.current > 0 && prevTranscriptLengthRef.current !== transcript.length) {
+            setTimeout(() => {
+              if (prevTranscriptLengthRef.current === transcript.length) {
+                if (cammicRef.current) {
+                  // Use the transcript directly instead of relying on state
+                  handleSendMessage(transcript);
+                  transcriptRef.current = ''; // transcript をリセット
+                  setUserMessage(''); // UI 上のメッセージもリセット
+                  prevTranscriptLengthRef.current = 0;
+                  
+                  // 送信後は停止状態を維持（TTS再生時に音声認識を停止するため）
                 }
-              }, NO_SPEECH_TIMEOUT); // ここで変数を使用
-            }
-            prevTranscriptLengthRef.current = transcript.length;
-          });
-
-          // 初回は自動的に音声認識を開始しない
-          // ユーザーが検出されたときのみ start() が呼ばれる
-          console.log("cammicApp initialized successfully, waiting for user detection");
-        } catch (error) {
-          if (error instanceof Error) {
-            if (error.message.includes('permission denied')) {
-              console.error("Microphone access was denied by the user");
-              // Potentially show a user-friendly message here
-            } else {
-              console.error("Failed to initialize cammicApp:", error.message);
-            }
+              }
+            }, NO_SPEECH_TIMEOUT); // ここで変数を使用
           }
-          // Clean up the failed instance
-          cammicRef.current = null;
+          prevTranscriptLengthRef.current = transcript.length;
+        });
+
+        // 初回は自動的に音声認識を開始しない
+        // ユーザーが検出されたときのみ start() が呼ばれる
+        console.log("cammicApp initialized successfully, waiting for user detection");
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes('permission denied')) {
+            console.error("Microphone access was denied by the user");
+            // Potentially show a user-friendly message here
+          } else {
+            console.error("Failed to initialize cammicApp:", error.message);
+          }
         }
+        // Clean up the failed instance
+        cammicRef.current = null;
+      } finally {
+        // 初期化完了
+        isInitializing = false;
       }
     };
 
@@ -220,6 +226,7 @@ export const MessageInputContainer = ({
   }, [])
 
   const startListening = useCallback(async () => {
+    console.log('startListening', Date.now())
     const hasPermission = await checkMicrophonePermission()
     if (!hasPermission) return
 
@@ -334,6 +341,7 @@ export const MessageInputContainer = ({
   }, [])
 
   const stopListening = useCallback(async () => {
+    console.log('stopListening', Date.now())
     isListeningRef.current = false
     setIsListening(false)
     if (recognition) {
@@ -472,110 +480,48 @@ export const MessageInputContainer = ({
     []
   )
 
-  // Add this flag to track if a detection is currently being processed
-  const userDetectionInProgressRef = useRef(false);
-
-  // ユーザー検出時のハンドラ
+  // New handler for user detection from PersonDetector component
   const handleUserDetected = useCallback((userId: string, isNewUser: boolean) => {
-    console.log(`ユーザー検出: ${userId}, 新規ユーザー: ${isNewUser}, 前回ユーザー：${prevUserIdRef.current}`);
-
-    // 無効なユーザーIDを無視
-    if (userId.endsWith('null') || userId === 'not_detected') {
-      console.warn('Invalid user detected, ignoring:', userId);
-      return;
-    }
+    currentUserIdRef.current = userId;
     
+    // Only send message if enough time has passed since last message
     const currentTime = Date.now();
-    
-    // =========== モジュールレベルの処理フラグを最初にチェック ===========
-    if (isUserDetectionProcessing) {
-      console.log('ユーザー検出: グローバル処理フラグによりスキップします');
-      return;
+    if (currentTime - lastChatProcessTimeRef.current > 3000) {
+      lastChatProcessTimeRef.current = currentTime;
+      onChatProcessStart("ユーザーがいらっしゃいました。");
     }
     
-    // =========== モジュールレベルのタイムスタンプによるデバウンス ===========
-    const timeSinceLastGlobalDetection = currentTime - lastUserDetectionTime;
-    if (timeSinceLastGlobalDetection < 3000 && lastUserDetectionTime > 0) {
-      console.log(`ユーザー検出: グローバルデバウンス期間内のためスキップします (${timeSinceLastGlobalDetection}ms)`);
-      return;
-    }
-    
-    // =========== 両方のフラグをセットして二重処理を防止 ===========
-    isUserDetectionProcessing = true;
-    userDetectionInProgressRef.current = true;
-    
-    try {
-      console.log(`ユーザー検出: 現在の時刻=${currentTime}, グローバル前回時刻=${lastUserDetectionTime}`);
-      
-      // ユーザーが新しく検出された場合、または前回のユーザーと異なる場合のみ処理
-      if (currentUserIdRef.current !== userId) {
-        // 前回のユーザーIDを保存してから現在のIDを更新
-        const prevUserId = currentUserIdRef.current;
-        currentUserIdRef.current = userId;
-      
-        // 前回と今回のユーザーIDを正確に比較
-        const isNewUserDetection = prevUserId === null && userId !== null;
-        const isUserChanged = prevUserId !== userId && prevUserId !== null;
-        
-        if (isNewUserDetection || isUserChanged) {
-          console.log(`ユーザー検出: ${isNewUserDetection ? '新規ユーザー' : '既存ユーザーとの再会'}`);
-          
-          // 両方のタイムスタンプを更新してからメッセージを送信
-          console.log(`ユーザー検出: グローバル時刻を記録 ${currentTime}`);
-          lastUserDetectionTime = currentTime;
-          lastChatProcessTimeRef.current = currentTime;
-          
-          onChatProcessStart("ユーザーがいらっしゃいました。");
-          
-          // 処理後に確認ログ
-          console.log(`ユーザー検出: 処理後のグローバルタイムスタンプ=${lastUserDetectionTime}`);
-        } else {
-          console.log('ユーザー検出: 前回と同じユーザー、メッセージ送信をスキップ');
-        }
-      
-        console.log('ユーザー検出: 録音準備完了 (TTS再生完了後に開始)', userId, prevUserId, currentTime);
-        prevUserIdRef.current = userId;
-      } else {
-        console.log('ユーザー検出: 同一ユーザー、処理をスキップ');
-      }
-    } finally {
-      // 処理中フラグを解放する前に少し待機
-      setTimeout(() => {
-        console.log('ユーザー検出: 処理フラグをリセット');
-        userDetectionInProgressRef.current = false;
-        isUserDetectionProcessing = false;
-      }, 1000);
+    // Start recording if user is male (based on your existing logic)
+    if (userId.endsWith('male') && cammicRef.current) {
+      console.log('ユーザーを検出: 音声認識を準備');
+      // Note: Recording will start after TTS completes based on your websocket handler
     }
   }, [onChatProcessStart]);
 
-  // ユーザーが検出されなくなった時のハンドラ
+  // New handler for user disappearance from PersonDetector component
   const handleUserDisappeared = useCallback(() => {
-    if (currentUserIdRef.current) {
-      // 同じくデバウンスを適用
-      const currentTime = Date.now();
-      if (currentTime - lastChatProcessTimeRef.current > 3000) {
-        console.log('ユーザーがいなくなりました。');
-        onChatProcessStart("ユーザーがいなくなりました。");
-        lastChatProcessTimeRef.current = currentTime;
-      }
-
-      // ユーザーIDをクリア
-      currentUserIdRef.current = null;
-  
-      // cammic 録音を停止
-      if (cammicRef.current) {
-        console.log('ユーザー不在: cammic録音を停止');
-        cammicRef.current.stop();
-        setCurrentTranscript('');
-        setUserMessage('');
-      }
-  
-      // 音声入力中なら停止
-      if (isListeningRef.current) {
-        console.log('ユーザー不在: Web Speech API音声入力を停止');
-        stopListening();
-      }
+    const currentTime = Date.now();
+    if (currentTime - lastChatProcessTimeRef.current > 3000) {
+      onChatProcessStart("ユーザーがいなくなりました。");
+      lastChatProcessTimeRef.current = currentTime;
     }
+
+    // Stop any ongoing recording
+    if (cammicRef.current) {
+      console.log('ユーザー不在: cammic録音を停止');
+      cammicRef.current.stop();
+      setCurrentTranscript('');
+      setUserMessage('');
+    }
+
+    // Stop Web Speech API listening if active
+    if (isListeningRef.current) {
+      console.log('ユーザー不在: Web Speech API音声入力を停止');
+      stopListening();
+    }
+    
+    // Clear current user ID
+    currentUserIdRef.current = null;
   }, [stopListening, onChatProcessStart]);
 
   useEffect(() => {
@@ -586,7 +532,7 @@ export const MessageInputContainer = ({
         const data = JSON.parse(event.data);
         if (data.type === 'voice.start') {
           if (cammicRef.current) {
-            console.log('AI発話開始: 音声認識を停止');
+            console.log('AI発話開始: 音声認識を停止', Date.now());
             cammicRef.current.stop();
           }
         }
@@ -600,7 +546,7 @@ export const MessageInputContainer = ({
             const userId = currentUserIdRef.current;
             // 男性ユーザーの場合のみ録音開始
             if (userId.endsWith('male')) {
-              console.log('AI発話完了: 男性ユーザーがいるため音声認識を開始');
+              console.log('AI発話完了: ユーザーがいるため音声認識を開始');
               cammicRef.current.start().catch(err => {
                 console.error('Failed to start recording after AI speech:', err);
               });
@@ -617,89 +563,34 @@ export const MessageInputContainer = ({
       wsManager.websocket.addEventListener('message', handleVoiceComplete);
 
       return () => {
-        wsManager.websocket.removeEventListener('message', handleVoiceStart);
-        wsManager.websocket.removeEventListener('message', handleVoiceComplete);
+        if (wsManager.websocket) {
+          wsManager.websocket.removeEventListener('message', handleVoiceStart);
+          wsManager.websocket.removeEventListener('message', handleVoiceComplete);
+        }
       };
     }
   }, []);
 
-  // VOICEVOXで音声合成し再生する関数を修正
-  const speakWithVoicevox = async (text: string) => {
-    try {
-      // 音声認識を確実に停止（TTS再生中は音声認識をしない）
-      if (cammicRef.current) {
-        console.log('TTS音声再生前に音声認識を停止');
-        cammicRef.current.stop();
-      }
-
-      // 設定ストアから音声設定を取得
-      const settings = settingsStore.getState();
-      const voiceSettings = {
-        // 設定値がある場合はそれを使用し、なければデフォルト値を使用
-        speaker: settings.voicevoxSpeaker || 1,
-        speed: settings.voicevoxSpeed || 1.0,
-        pitch: settings.voicevoxPitch || 0.0,
-        intonation: settings.voicevoxIntonation || 1.0
-      };
-      
-      console.log('VOICEVOXの音声設定:', voiceSettings);
-      
-      // VOICEVOXのAPIを呼び出し
-      const response = await fetch('/api/tts-voicevox', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text,
-          speaker: voiceSettings.speaker,
-          speed: voiceSettings.speed,
-          pitch: voiceSettings.pitch,
-          intonation: voiceSettings.intonation
-        }),
+  const initializeWebSocketConnection = () => {
+    console.log('WebSocketの初期化を開始します:MessageInputContainer', Date.now());
+    const wsManager = webSocketStore.getState().wsManager;
+    if (!wsManager || !wsManager.reconnect()) {
+      console.log('WebSocketの初期化または再接続に失敗しました');
+      toastStore.getState().addToast({
+        message: t('Toasts.WebSocketReconnectFailed'),
+        type: 'error',
+        duration: 3000,
       });
-      
-      if (!response.ok) throw new Error('TTS音声合成に失敗しました');
-      
-      // レスポンスからBlobを作成
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      
-      // TTS音声再生完了コールバックを設定
-      if (cammicRef.current) {
-        // 音声再生完了時のコールバックを設定
-        cammicRef.current.setTtsAudioEndCallback(() => {
-          console.log('TTS音声再生完了、ユーザーがいる場合は音声認識を再開');
-          // ユーザーがまだ存在する場合のみ音声認識を再開
-          if (currentUserIdRef.current) {
-            cammicRef.current?.start().catch(err => {
-              console.error('Failed to restart recording after TTS:', err);
-            });
-          }
-        });
-        
-        // TTS音声を再生し、完了を待つ
-        await cammicRef.current.playTtsAudio(audioUrl);
-      }
-      
-      // 使用後はURLを解放
-      URL.revokeObjectURL(audioUrl);
-    } catch (error) {
-      console.error('TTS音声再生エラー:', error);
-      // エラー時にも音声認識を再開（ユーザーがいる場合のみ）
-      if (cammicRef.current && currentUserIdRef.current) {
-        cammicRef.current.start().catch(err => console.error('Error restarting after TTS error:', err));
-      }
     }
   };
 
   return (
     <>
-      {/* カメラモニターをコンポーネントとして埋め込む */}
-      <CameraMonitor 
+      {/* Replace CameraMonitor with PersonDetector */}
+      <PersonDetector
         onUserDetected={handleUserDetected}
         onUserDisappeared={handleUserDisappeared}
-        pollInterval={10000} // 10秒ごとにチェック
+        pollInterval={10000} // 10 seconds
       />
       
       <div className="flex gap-2 p-2">
