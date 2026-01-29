@@ -29,6 +29,16 @@ export const MessageInputContainer = ({ onChatProcessStart }: Props) => {
     stopListening,
   } = useVoiceRecognition({ onChatProcessStart })
 
+  const isLookingAtCamera = homeStore((s) => s.isLookingAtCamera)
+
+  // Gaze-based auto-start
+  useEffect(() => {
+    if (isLookingAtCamera && !isListening && !continuousMicListeningMode) {
+      console.log('👀 Gaze detected: Starting speech recognition')
+      startListening()
+    }
+  }, [isLookingAtCamera, isListening, continuousMicListeningMode, startListening])
+
   // 常時マイク入力モードの切り替え
   const toggleContinuousMode = () => {
     // Whisperモードの場合は常時マイク入力モードを使用できない

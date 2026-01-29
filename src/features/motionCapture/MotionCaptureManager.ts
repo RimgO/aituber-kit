@@ -1,6 +1,7 @@
 import { Pose, Results } from '@mediapipe/pose'
 // @ts-ignore
 import * as Kalidokit from 'kalidokit'
+import homeStore from '@/features/stores/home'
 
 // Singleton instance to prevent multiple WASM initializations
 let globalPoseInstance: Pose | null = null
@@ -26,7 +27,7 @@ export class MotionCaptureManager {
       console.log('Waiting for existing initialization...')
       await initializationPromise
       if (globalPoseInstance) {
-        ;(globalPoseInstance as Pose).onResults(this.handleResults.bind(this))
+        ; (globalPoseInstance as Pose).onResults(this.handleResults.bind(this))
       }
       return
     }
@@ -89,7 +90,7 @@ export class MotionCaptureManager {
   public solvePose(results: Results, videoElement: HTMLVideoElement) {
     if (!results.poseLandmarks || !results.poseWorldLandmarks) return null
 
-    return Kalidokit.Pose.solve(
+    const riggedPose = Kalidokit.Pose.solve(
       results.poseLandmarks,
       results.poseWorldLandmarks,
       {
@@ -97,5 +98,22 @@ export class MotionCaptureManager {
         video: videoElement,
       }
     )
+
+    // Calculate gaze direction
+    const pose = riggedPose as any
+    if (pose && pose.Head && pose.Head.rotation) {
+      const { x, y, z } = pose.Head.rotation
+      // Check if user is looking at camera (angles close to 0)
+      // Threshold: 0.3 radians (~17 degrees)
+      const isLooking =
+        Math.abs(x) < 0.3 && Math.abs(y) < 0.3 && Math.abs(z) < 0.3
+
+      const currentIsLooking = homeStore.getState().isLookingAtCamera
+      if (currentIsLooking !== isLooking) {
+        homeStore.setState({ isLookingAtCamera: isLooking })
+      }
+    }
+
+    return riggedPose
   }
 }

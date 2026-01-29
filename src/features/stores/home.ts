@@ -32,6 +32,7 @@ export interface TransientState {
   isLive2dLoaded: boolean
   setIsLive2dLoaded: (loaded: boolean) => void
   isSpeaking: boolean
+  isLookingAtCamera: boolean
 }
 
 export type HomeState = PersistedState & TransientState
@@ -132,6 +133,7 @@ const homeStore = create<HomeState>()(
       isLive2dLoaded: false,
       setIsLive2dLoaded: (loaded) => set(() => ({ isLive2dLoaded: loaded })),
       isSpeaking: false,
+      isLookingAtCamera: false,
     }),
     {
       name: 'aitube-kit-home',
@@ -166,7 +168,7 @@ homeStore.subscribe((state, prevState) => {
         (msg, idx) =>
           idx >= lastSavedLogLength || // 追加分
           prevState.chatLog.find((p) => p.id === msg.id)?.content !==
-            msg.content // 更新分
+          msg.content // 更新分
       )
 
       if (newMessagesToSave.length > 0) {
