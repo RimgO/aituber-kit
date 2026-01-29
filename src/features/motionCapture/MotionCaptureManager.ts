@@ -110,7 +110,7 @@ export class MotionCaptureManager {
       }
     }
 
-    let faceRig = {}
+    let faceRig: any = {}
     if (results.faceLandmarks) {
       faceRig = Kalidokit.Face.solve(
         results.faceLandmarks,
@@ -119,6 +119,16 @@ export class MotionCaptureManager {
           video: videoElement,
         }
       )
+
+      // Mouth Open Detection
+      // faceRig.mouth.y is openness (0 to 1)
+      if (faceRig && faceRig.mouth) {
+        const isOpen = (faceRig.mouth.y || 0) > 0.1
+        const currentIsOpen = homeStore.getState().isMouthOpen
+        if (currentIsOpen !== isOpen) {
+          homeStore.setState({ isMouthOpen: isOpen })
+        }
+      }
     }
 
     let rightHandRig = {}

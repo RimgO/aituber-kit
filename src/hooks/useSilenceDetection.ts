@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, MutableRefObject } from 'react'
 import settingsStore from '@/features/stores/settings'
 import toastStore from '@/features/stores/toast'
+import homeStore from '@/features/stores/home'
 import { useTranslation } from 'react-i18next'
 
 type UseSilenceDetectionProps = {
@@ -56,12 +57,17 @@ export const useSilenceDetection = ({
 
       // 100ms間隔で無音状態をチェック
       silenceCheckInterval.current = setInterval(async () => {
-        // すでに音声終了処理が行われていれば何もしない
         if (speechEndedRef.current) {
           console.log(
             '🔇 すでに音声終了処理が完了しているため、無音チェックをスキップします'
           )
           return
+        }
+
+        // 口が開いている（話している）場合、無音タイマーをリセット
+        // これにより「言い終わって口が閉じる」まで送信を待機する
+        if (homeStore.getState().isMouthOpen) {
+          lastSpeechTimestamp.current = Date.now()
         }
 
         // 現在時刻と最終音声検出時刻の差を計算

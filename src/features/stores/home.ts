@@ -33,6 +33,7 @@ export interface TransientState {
   setIsLive2dLoaded: (loaded: boolean) => void
   isSpeaking: boolean
   isLookingAtCamera: boolean
+  isMouthOpen: boolean
 }
 
 export type HomeState = PersistedState & TransientState
@@ -134,6 +135,7 @@ const homeStore = create<HomeState>()(
       setIsLive2dLoaded: (loaded) => set(() => ({ isLive2dLoaded: loaded })),
       isSpeaking: false,
       isLookingAtCamera: false,
+      isMouthOpen: false,
     }),
     {
       name: 'aitube-kit-home',

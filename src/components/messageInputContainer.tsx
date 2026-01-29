@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { MessageInput } from '@/components/messageInput'
 import homeStore from '@/features/stores/home'
 import settingsStore from '@/features/stores/settings'
@@ -31,15 +31,37 @@ export const MessageInputContainer = ({ onChatProcessStart }: Props) => {
   } = useVoiceRecognition({ onChatProcessStart })
 
   const isLookingAtCamera = homeStore((s) => s.isLookingAtCamera)
+  const isMouthOpen = homeStore((s) => s.isMouthOpen)
+  const autoStartTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Gaze-based auto-start
+  // Gaze-based auto-start with delay
   useEffect(() => {
-    if (isLookingAtCamera && !isSpeaking && !chatProcessing) {
-      if (!isListening && !continuousMicListeningMode) {
-        startListening()
+    // Trigger if Looking OR Mouth is Open
+    const isActive = isLookingAtCamera || isMouthOpen
+    const canStart = !isSpeaking && !chatProcessing && !isListening && !continuousMicListeningMode
+
+    if (isActive && canStart) {
+      if (!autoStartTimerRef.current) {
+        autoStartTimerRef.current = setTimeout(() => {
+          console.log('👀 Face/Gaze trigger: Starting speech recognition')
+          startListening()
+          autoStartTimerRef.current = null
+        }, 1000) // 1 second threshold
+      }
+    } else {
+      if (autoStartTimerRef.current) {
+        clearTimeout(autoStartTimerRef.current)
+        autoStartTimerRef.current = null
       }
     }
-  }, [isLookingAtCamera, isListening, continuousMicListeningMode, startListening, isSpeaking, chatProcessing])
+
+    return () => {
+      if (autoStartTimerRef.current) {
+        clearTimeout(autoStartTimerRef.current)
+      }
+    }
+  }, [isLookingAtCamera, isMouthOpen, isSpeaking, chatProcessing, isListening, continuousMicListeningMode, startListening])
 
   // 常時マイク入力モードの切り替え
   const toggleContinuousMode = () => {
