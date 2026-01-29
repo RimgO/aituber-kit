@@ -18,6 +18,15 @@ import '@/lib/i18n'
 import { buildUrl } from '@/utils/buildUrl'
 import { YoutubeManager } from '@/components/youtubeManager'
 import toastStore from '@/features/stores/toast'
+import dynamic from 'next/dynamic'
+
+const MotionCapture = dynamic(
+  () =>
+    import('@/features/motionCapture/MotionCapture').then(
+      (mod) => mod.MotionCapture
+    ),
+  { ssr: false }
+)
 
 const Home = () => {
   const webcamStatus = homeStore((s) => s.webcamStatus)
@@ -112,6 +121,7 @@ const Home = () => {
       <YoutubeManager />
       <CharacterPresetMenu />
       <ImageOverlay />
+      <MotionCapture />
     </div>
   )
 }

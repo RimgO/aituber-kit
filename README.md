@@ -129,16 +129,20 @@ AITuberKitは、誰でも簡単にAIキャラクターとチャットできるWe
 git clone https://github.com/tegnike/aituber-kit.git
 ```
 
-2. フォルダを開きます。
+2. フォルダに移動します。
 
 ```bash
 cd aituber-kit
 ```
 
-3. パッケージインストールします。
+3. パッケージをインストールします。
 
 ```bash
 npm install
+```
+※ インストール中にエラーが発生する場合は、以下のコマンドを試してください。
+```bash
+npm install --ignore-scripts
 ```
 
 4. 開発モードでアプリケーションを起動します。
