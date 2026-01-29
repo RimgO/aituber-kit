@@ -137,6 +137,40 @@ export class Model {
       setRotation('rightLowerLeg', riggedPose.RightLowerLeg)
     if (riggedPose.LeftLowerLeg)
       setRotation('leftLowerLeg', riggedPose.LeftLowerLeg)
+    if (riggedPose.RightLowerLeg)
+      setRotation('rightLowerLeg', riggedPose.RightLowerLeg)
+    if (riggedPose.LeftLowerLeg)
+      setRotation('leftLowerLeg', riggedPose.LeftLowerLeg)
+
+    // Handle Face Expressions (Blink, Mouth)
+    if (riggedPose.Face && this.vrm.expressionManager) {
+      const face = riggedPose.Face
+      const em = this.vrm.expressionManager
+
+      // Blink
+      // Kalidokit: 1 = Open, 0 = Closed
+      // VRM: 0 = Open, 1 = Closed
+      if (face.eye) {
+        const blinkL = 1 - (face.eye.l || 1)
+        const blinkR = 1 - (face.eye.r || 1)
+        em.setValue('blink_l', blinkL)
+        em.setValue('blink_r', blinkR)
+      }
+
+      // Mouth (Lipsync)
+      // Note: If LipSync via Audio is active, this might conflict.
+      // We should prioritise Audio LipSync if speaking?
+      // But here we just apply what we have.
+      // Kalidokit gives shape: { A, E, I, O, U }
+      if (face.mouth && face.mouth.shape) {
+        const shape = face.mouth.shape
+        em.setValue('aa', shape.A || 0)
+        em.setValue('ih', shape.I || 0)
+        em.setValue('ou', shape.U || 0)
+        em.setValue('ee', shape.E || 0)
+        em.setValue('oh', shape.O || 0)
+      }
+    }
   }
 
   /**

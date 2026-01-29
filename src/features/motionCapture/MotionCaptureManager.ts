@@ -1,10 +1,10 @@
-import { Pose, Results } from '@mediapipe/pose'
+import { Holistic, Results } from '@mediapipe/holistic'
 // @ts-ignore
 import * as Kalidokit from 'kalidokit'
 import homeStore from '@/features/stores/home'
 
 // Singleton instance to prevent multiple WASM initializations
-let globalPoseInstance: Pose | null = null
+let globalHolisticInstance: Holistic | null = null
 let isInitializing = false
 let initializationPromise: Promise<void> | null = null
 
@@ -17,47 +17,48 @@ export class MotionCaptureManager {
   }
 
   public async initialize() {
-    if (globalPoseInstance) {
-      console.log('Attaching to existing global Pose instance')
-      globalPoseInstance.onResults(this.handleResults.bind(this))
+    if (globalHolisticInstance) {
+      console.log('Attaching to existing global Holistic instance')
+      globalHolisticInstance.onResults(this.handleResults.bind(this))
       return
     }
 
     if (isInitializing && initializationPromise) {
       console.log('Waiting for existing initialization...')
       await initializationPromise
-      if (globalPoseInstance) {
-        ; (globalPoseInstance as Pose).onResults(this.handleResults.bind(this))
+      if (globalHolisticInstance) {
+        ; (globalHolisticInstance as Holistic).onResults(this.handleResults.bind(this))
       }
       return
     }
 
     isInitializing = true
-    console.log('Initializing MotionCaptureManager...')
+    console.log('Initializing MotionCaptureManager (Holistic)...')
 
     initializationPromise = (async () => {
       try {
-        const pose = new Pose({
+        const holistic = new Holistic({
           locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`
           },
         })
 
-        pose.setOptions({
+        holistic.setOptions({
           modelComplexity: 1,
           smoothLandmarks: true,
           enableSegmentation: false,
           smoothSegmentation: false,
+          refineFaceLandmarks: true,
           minDetectionConfidence: 0.3,
           minTrackingConfidence: 0.3,
         })
 
-        await pose.initialize()
-        globalPoseInstance = pose
-        globalPoseInstance.onResults(this.handleResults.bind(this))
+        await holistic.initialize()
+        globalHolisticInstance = holistic
+        globalHolisticInstance.onResults(this.handleResults.bind(this))
         console.log('MotionCaptureManager Initialized')
       } catch (error) {
-        console.error('Failed to initialize Pose:', error)
+        console.error('Failed to initialize Holistic:', error)
         throw error
       } finally {
         isInitializing = false
@@ -74,8 +75,8 @@ export class MotionCaptureManager {
   }
 
   public async send(image: HTMLVideoElement) {
-    if (!this.isRunning || !globalPoseInstance) return
-    await globalPoseInstance.send({ image })
+    if (!this.isRunning || !globalHolisticInstance) return
+    await globalHolisticInstance.send({ image })
   }
 
   public start() {
@@ -84,67 +85,91 @@ export class MotionCaptureManager {
 
   public stop() {
     this.isRunning = false
-    // deliberately do NOT close the global pose instance to avoid re-init crashes
   }
 
   public solvePose(results: Results, videoElement: HTMLVideoElement) {
-    // Debug entry removed
+    if (!results.poseLandmarks && !results.faceLandmarks) return null
 
-    if (!results.poseLandmarks || !results.poseWorldLandmarks) return null
+    let poseRig = {}
+    if (results.poseLandmarks && results.poseLandmarks.length >= 33) {
+      try {
+        // Fallback for 3D landmarks if missing to prevent Kalidokit crash
+        // @ts-ignore
+        const worldLandmarks = results.poseWorldLandmarks || results.poseLandmarks.map(l => ({ x: l.x, y: l.y, z: 0, visibility: l.visibility }))
 
-    const riggedPose = Kalidokit.Pose.solve(
-      results.poseLandmarks,
-      results.poseWorldLandmarks,
-      {
-        runtime: 'mediapipe',
-        video: videoElement,
+        poseRig = Kalidokit.Pose.solve(
+          results.poseLandmarks,
+          worldLandmarks,
+          {
+            runtime: 'mediapipe',
+            video: videoElement,
+          }
+        )
+      } catch (e) {
+        console.error('Kalidokit Pose solve error:', e)
       }
-    )
+    }
 
-    // Detailed debug removed
+    let faceRig = {}
+    if (results.faceLandmarks) {
+      faceRig = Kalidokit.Face.solve(
+        results.faceLandmarks,
+        {
+          runtime: 'mediapipe',
+          video: videoElement,
+        }
+      )
+    }
 
-    // Calculate gaze direction
+    let rightHandRig = {}
+    if (results.rightHandLandmarks) {
+      rightHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, "Right")
+    }
+
+    let leftHandRig = {}
+    if (results.leftHandLandmarks) {
+      leftHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, "Left")
+    }
+
+    const riggedPose = {
+      ...poseRig,
+      ...(rightHandRig || {}),
+      ...(leftHandRig || {}),
+      Face: faceRig
+    }
+
+    // Gaze Detection Logic 
     let headRotation = { x: 0, y: 0, z: 0 }
     let hasHeadData = false
 
-    const pose = riggedPose as any
+    const pose = poseRig as any
     if (pose && pose.Head && pose.Head.rotation) {
       headRotation = pose.Head.rotation
       hasHeadData = true
     } else {
-      // Fallback: Raw landmarks
-      const nose = results.poseLandmarks[0]
-      const leftEar = results.poseLandmarks[7]
-      const rightEar = results.poseLandmarks[8]
+      // Fallback: Raw landmarks from Pose
+      if (results.poseLandmarks) {
+        const nose = results.poseLandmarks[0]
+        const leftEar = results.poseLandmarks[7]
+        const rightEar = results.poseLandmarks[8]
 
-      if (nose && leftEar && rightEar) {
-        // Simple approximation
-        const earMidX = (leftEar.x + rightEar.x) / 2
-        const earMidY = (leftEar.y + rightEar.y) / 2
+        if (nose && leftEar && rightEar) {
+          const earMidX = (leftEar.x + rightEar.x) / 2
+          const earMidY = (leftEar.y + rightEar.y) / 2
 
-        // Yaw: Nose relative to ear center X
-        // Scale factor approx 10 to map normalized coords to radians
-        const yaw = (nose.x - earMidX) * 10
+          const yaw = (nose.x - earMidX) * 10
+          const pitch = (nose.y - earMidY) * 10
+          const roll = -Math.atan2(rightEar.y - leftEar.y, rightEar.x - leftEar.x)
 
-        // Pitch: Nose relative to ear center Y
-        // Offset: Nose is naturally below ears. Adjust offset if needed.
-        const pitch = (nose.y - earMidY) * 10
-
-        // Roll: Angle of ears
-        const roll = -Math.atan2(rightEar.y - leftEar.y, rightEar.x - leftEar.x)
-
-        headRotation = { x: pitch, y: yaw, z: roll }
-        hasHeadData = true
-
+          headRotation = { x: pitch, y: yaw, z: roll }
+          hasHeadData = true
+        }
       }
     }
 
     if (hasHeadData) {
       const { x, y, z } = headRotation
 
-      // Check if user is looking at camera (angles close to 0)
-      // Threshold: 0.3 radians (~17 degrees)
-      // Handle Roll (z) being around PI due to mirroring
       let checkZ = Math.abs(z)
       if (checkZ > 2.0) checkZ = Math.abs(checkZ - Math.PI)
 
