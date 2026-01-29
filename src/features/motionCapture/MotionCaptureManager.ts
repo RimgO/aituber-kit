@@ -48,8 +48,8 @@ export class MotionCaptureManager {
           smoothLandmarks: true,
           enableSegmentation: false,
           smoothSegmentation: false,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence: 0.5,
+          minDetectionConfidence: 0.3,
+          minTrackingConfidence: 0.3,
         })
 
         await pose.initialize()
@@ -88,6 +88,8 @@ export class MotionCaptureManager {
   }
 
   public solvePose(results: Results, videoElement: HTMLVideoElement) {
+    // Debug entry removed
+
     if (!results.poseLandmarks || !results.poseWorldLandmarks) return null
 
     const riggedPose = Kalidokit.Pose.solve(
@@ -99,14 +101,55 @@ export class MotionCaptureManager {
       }
     )
 
+    // Detailed debug removed
+
     // Calculate gaze direction
+    let headRotation = { x: 0, y: 0, z: 0 }
+    let hasHeadData = false
+
     const pose = riggedPose as any
     if (pose && pose.Head && pose.Head.rotation) {
-      const { x, y, z } = pose.Head.rotation
+      headRotation = pose.Head.rotation
+      hasHeadData = true
+    } else {
+      // Fallback: Raw landmarks
+      const nose = results.poseLandmarks[0]
+      const leftEar = results.poseLandmarks[7]
+      const rightEar = results.poseLandmarks[8]
+
+      if (nose && leftEar && rightEar) {
+        // Simple approximation
+        const earMidX = (leftEar.x + rightEar.x) / 2
+        const earMidY = (leftEar.y + rightEar.y) / 2
+
+        // Yaw: Nose relative to ear center X
+        // Scale factor approx 10 to map normalized coords to radians
+        const yaw = (nose.x - earMidX) * 10
+
+        // Pitch: Nose relative to ear center Y
+        // Offset: Nose is naturally below ears. Adjust offset if needed.
+        const pitch = (nose.y - earMidY) * 10
+
+        // Roll: Angle of ears
+        const roll = -Math.atan2(rightEar.y - leftEar.y, rightEar.x - leftEar.x)
+
+        headRotation = { x: pitch, y: yaw, z: roll }
+        hasHeadData = true
+
+      }
+    }
+
+    if (hasHeadData) {
+      const { x, y, z } = headRotation
+
       // Check if user is looking at camera (angles close to 0)
       // Threshold: 0.3 radians (~17 degrees)
+      // Handle Roll (z) being around PI due to mirroring
+      let checkZ = Math.abs(z)
+      if (checkZ > 2.0) checkZ = Math.abs(checkZ - Math.PI)
+
       const isLooking =
-        Math.abs(x) < 0.3 && Math.abs(y) < 0.3 && Math.abs(z) < 0.3
+        Math.abs(x) < 0.3 && Math.abs(y) < 0.3 && checkZ < 0.3
 
       const currentIsLooking = homeStore.getState().isLookingAtCamera
       if (currentIsLooking !== isLooking) {

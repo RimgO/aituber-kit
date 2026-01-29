@@ -13,15 +13,17 @@ export const MotionCapture = () => {
     if (!videoRef.current) return
 
     const manager = new MotionCaptureManager((results) => {
-      // Access store freshly to get the current viewer/model
-      const { viewer } = homeStore.getState()
-      if (!viewer.model) return
-
       // Use videoRef.current as the source for dimensions
+
       // Check if video is ready
       if (videoRef.current && videoRef.current.readyState >= 2) {
+        // Solve pose always to trigger gaze detection
         const riggedPose = manager.solvePose(results, videoRef.current)
-        if (riggedPose) {
+
+        // Access store freshly to get the current viewer/model
+        const { viewer } = homeStore.getState()
+
+        if (viewer.model && riggedPose) {
           if (!hasPoseRef.current) {
             hasPoseRef.current = true
             // Stop the idle animation so manual bone control works better
@@ -35,6 +37,8 @@ export const MotionCapture = () => {
     manager.initialize().then(() => {
       setIsThinking(false)
       manager.start()
+    }).catch(err => {
+      console.error('MotionCapture: Initialization failed', err)
     })
 
     managerRef.current = manager

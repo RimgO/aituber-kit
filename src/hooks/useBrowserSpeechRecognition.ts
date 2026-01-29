@@ -201,6 +201,12 @@ export const useBrowserSpeechRecognition = (
     []
   )
 
+  // ----- startListeningの最新参照を保持するRef（useEffect内のクロージャ問題対策） -----
+  const startListeningRef = useRef(startListening)
+  useEffect(() => {
+    startListeningRef.current = startListening
+  }, [startListening])
+
   // ----- 音声認識オブジェクトの初期化とイベントハンドラ設定 -----
   useEffect(() => {
     const SpeechRecognition =
@@ -309,11 +315,18 @@ export const useBrowserSpeechRecognition = (
       clearSilenceDetection()
       clearInitialSpeechCheckTimer()
 
-      // isListeningRef.currentがtrueの場合は再開
-      if (isListeningRef.current) {
+      // フラグがtrueの場合は、意図しない停止（エラーや自動停止など）とみなして再開を試みる
+      // ただし、実際にブラウザの認識は停止しているので、一旦フラグをリセットする必要がある
+      const shouldRestart = isListeningRef.current
+
+      // 状態をリセット
+      isListeningRef.current = false
+      setIsListening(false)
+
+      if (shouldRestart) {
         console.log('Restarting speech recognition...')
         setTimeout(() => {
-          startListening()
+          startListeningRef.current()
         }, 1000)
       }
     }

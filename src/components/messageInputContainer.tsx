@@ -11,6 +11,7 @@ type Props = {
 
 export const MessageInputContainer = ({ onChatProcessStart }: Props) => {
   const isSpeaking = homeStore((s) => s.isSpeaking)
+  const chatProcessing = homeStore((s) => s.chatProcessing)
   const continuousMicListeningMode = settingsStore(
     (s) => s.continuousMicListeningMode
   )
@@ -33,11 +34,12 @@ export const MessageInputContainer = ({ onChatProcessStart }: Props) => {
 
   // Gaze-based auto-start
   useEffect(() => {
-    if (isLookingAtCamera && !isListening && !continuousMicListeningMode) {
-      console.log('👀 Gaze detected: Starting speech recognition')
-      startListening()
+    if (isLookingAtCamera && !isSpeaking && !chatProcessing) {
+      if (!isListening && !continuousMicListeningMode) {
+        startListening()
+      }
     }
-  }, [isLookingAtCamera, isListening, continuousMicListeningMode, startListening])
+  }, [isLookingAtCamera, isListening, continuousMicListeningMode, startListening, isSpeaking, chatProcessing])
 
   // 常時マイク入力モードの切り替え
   const toggleContinuousMode = () => {
