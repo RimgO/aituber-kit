@@ -3,6 +3,7 @@ import { Holistic, Results } from '@mediapipe/holistic'
 import * as Kalidokit from 'kalidokit'
 import homeStore from '@/features/stores/home'
 import settingsStore from '@/features/stores/settings'
+import { solveArms } from './solveArms'
 
 // Singleton instance to prevent multiple WASM initializations
 let globalHolisticInstance: Holistic | null = null
@@ -129,6 +130,18 @@ export class MotionCaptureManager {
             }
           )
 
+          // Overwrite arm rigs with custom solver for better upper/lower arm tracking
+          const customArms = solveArms(results.poseLandmarks)
+
+          if (settings.enableUpperBodyTracking) {
+            poseRig.RightUpperArm = customArms.RightUpperArm
+            poseRig.RightLowerArm = customArms.RightLowerArm
+            poseRig.LeftUpperArm = customArms.LeftUpperArm
+            poseRig.LeftLowerArm = customArms.LeftLowerArm
+            poseRig.RightHand = customArms.RightHand
+            poseRig.LeftHand = customArms.LeftHand
+          }
+
           // Filter Rig based on settings
           if (!settings.enableHipsTracking) {
             delete poseRig.Hips
@@ -149,6 +162,7 @@ export class MotionCaptureManager {
             delete poseRig.RightHand
             delete poseRig.LeftHand
           }
+
 
           if (!settings.enableLegTracking) {
             delete poseRig.RightUpperLeg
