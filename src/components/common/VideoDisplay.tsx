@@ -16,6 +16,7 @@ interface VideoDisplayProps {
   mediaStream?: MediaStream | null
   onCapture?: () => void
   onToggleSource?: () => void
+  onClose?: () => void
   toggleSourceIcon?: string
   toggleSourceDisabled?: boolean
   showToggleButton?: boolean
@@ -32,6 +33,7 @@ export const VideoDisplay = forwardRef<HTMLDivElement, VideoDisplayProps>(
       toggleSourceIcon = '24/Roll',
       toggleSourceDisabled = false,
       showToggleButton = true,
+      onClose,
       className = '',
     },
     ref
@@ -40,6 +42,7 @@ export const VideoDisplay = forwardRef<HTMLDivElement, VideoDisplayProps>(
     const useVideoAsBackground = settingsStore((s) => s.useVideoAsBackground)
     const backgroundVideoRef = useRef<HTMLVideoElement>(null)
     const [isExpanded, setIsExpanded] = useState(false)
+    const [isPip, setIsPip] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
     const [videoBounds, setVideoBounds] = useState({
       x: 0,
@@ -186,6 +189,36 @@ export const VideoDisplay = forwardRef<HTMLDivElement, VideoDisplayProps>(
       updateVideoBounds()
     }, [size, updateVideoBounds])
 
+    const handlePip = useCallback(async () => {
+      if (!videoRef.current) return
+      try {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture()
+          setIsPip(false)
+        } else {
+          await videoRef.current.requestPictureInPicture()
+          setIsPip(true)
+        }
+      } catch (e) {
+        console.error('Failed to toggle Picture-in-Picture:', e)
+      }
+    }, [videoRef])
+
+    useEffect(() => {
+      const video = videoRef.current
+      if (!video) return
+
+      const onEnterPip = () => setIsPip(true)
+      const onLeavePip = () => setIsPip(false)
+
+      video.addEventListener('enterpictureinpicture', onEnterPip)
+      video.addEventListener('leavepictureinpicture', onLeavePip)
+      return () => {
+        video.removeEventListener('enterpictureinpicture', onEnterPip)
+        video.removeEventListener('leavepictureinpicture', onLeavePip)
+      }
+    }, [videoRef])
+
     return (
       <>
         {useVideoAsBackground && (
@@ -224,9 +257,8 @@ export const VideoDisplay = forwardRef<HTMLDivElement, VideoDisplayProps>(
               autoPlay
               playsInline
               muted
-              className={`w-full h-full object-top ${
-                useVideoAsBackground ? 'invisible' : ''
-              }`}
+              className={`w-full h-full object-top ${useVideoAsBackground ? 'invisible' : ''
+                }`}
             />
             {/* Resize handles */}
             {!isExpanded &&
@@ -330,6 +362,20 @@ export const VideoDisplay = forwardRef<HTMLDivElement, VideoDisplayProps>(
                 isProcessing={false}
                 onClick={handleCapture}
               />
+              <IconButton
+                iconName={isPip ? '24/FrameEffect' : '24/FrameEffect'}
+                className={`z-30 bg-secondary hover:bg-secondary-hover active:bg-secondary-press disabled:bg-secondary-disabled m-2 ${isPip ? 'bg-primary text-white' : ''}`}
+                isProcessing={false}
+                onClick={handlePip}
+              />
+              {onClose && (
+                <IconButton
+                  iconName="24/Close"
+                  className="z-30 bg-secondary hover:bg-secondary-hover active:bg-secondary-press disabled:bg-secondary-disabled m-2"
+                  isProcessing={false}
+                  onClick={onClose}
+                />
+              )}
             </div>
           </div>
         </div>

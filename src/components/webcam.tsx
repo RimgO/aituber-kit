@@ -3,7 +3,11 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import homeStore from '@/features/stores/home'
 import { VideoDisplay } from './common/VideoDisplay'
 
-export const Webcam = () => {
+interface WebcamProps {
+  onClose?: () => void
+}
+
+export const Webcam = ({ onClose }: WebcamProps) => {
   const [selectedDevice, setSelectedDevice] = useState<string>('')
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
   const [showRotateButton, setShowRotateButton] = useState(true)
@@ -39,24 +43,33 @@ export const Webcam = () => {
     }
   }, [refreshDevices])
 
-  const initializeCamera = useCallback(async () => {
-    if (!navigator.mediaDevices || !selectedDevice) return
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { deviceId: { exact: selectedDevice } },
-      })
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
+  useEffect(() => {
+    let currentStream: MediaStream | null = null
+
+    const startCamera = async () => {
+      if (!navigator.mediaDevices || !selectedDevice) return
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { deviceId: { exact: selectedDevice } },
+        })
+        currentStream = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+        }
+      } catch (e) {
+        console.error('Error initializing camera:', e)
       }
-    } catch (e) {
-      console.error('Error initializing camera:', e)
+    }
+
+    startCamera()
+
+    return () => {
+      if (currentStream) {
+        currentStream.getTracks().forEach((track) => track.stop())
+      }
     }
   }, [selectedDevice])
-
-  useEffect(() => {
-    initializeCamera()
-  }, [initializeCamera])
 
   const handleRotateCamera = useCallback(() => {
     if (!navigator.mediaDevices || devices.length < 2) return
@@ -68,10 +81,7 @@ export const Webcam = () => {
     setSelectedDevice(newDevice)
   }, [devices, selectedDevice])
 
-  useEffect(() => {
-    console.log('Selected device changed:', selectedDevice)
-    initializeCamera()
-  }, [selectedDevice, initializeCamera])
+
 
   return (
     <VideoDisplay
@@ -80,6 +90,7 @@ export const Webcam = () => {
       toggleSourceIcon="24/Roll"
       toggleSourceDisabled={!showRotateButton}
       showToggleButton={true}
+      onClose={onClose}
     />
   )
 }

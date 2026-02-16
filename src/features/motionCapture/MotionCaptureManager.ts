@@ -49,8 +49,8 @@ export class MotionCaptureManager {
           enableSegmentation: false,
           smoothSegmentation: false,
           refineFaceLandmarks: true,
-          minDetectionConfidence: 0.3,
-          minTrackingConfidence: 0.3,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5,
         })
 
         await holistic.initialize()
@@ -90,7 +90,25 @@ export class MotionCaptureManager {
   public solvePose(results: Results, videoElement: HTMLVideoElement) {
     if (!results.poseLandmarks && !results.faceLandmarks) return null
 
-    let poseRig = {}
+    // Check if the detected person is large enough (heuristic to avoid background people)
+    if (results.poseLandmarks) {
+      const xs = results.poseLandmarks.map((l) => l.x)
+      const ys = results.poseLandmarks.map((l) => l.y)
+      const width = Math.max(...xs) - Math.min(...xs)
+      const height = Math.max(...ys) - Math.min(...ys)
+      const area = width * height
+
+      // If area is less than 3% of the frame, consider it a background person/noise and reset tracking
+      if (area < 0.03) {
+        // console.log('Pose too small (area: ' + area.toFixed(4) + '), resetting tracker...')
+        if (globalHolisticInstance) {
+          globalHolisticInstance.reset()
+        }
+        return null
+      }
+    }
+
+    let poseRig: any = {}
     if (results.poseLandmarks && results.poseLandmarks.length >= 33) {
       try {
         // Fallback for 3D landmarks if missing to prevent Kalidokit crash
@@ -131,12 +149,12 @@ export class MotionCaptureManager {
       }
     }
 
-    let rightHandRig = {}
+    let rightHandRig: any = {}
     if (results.rightHandLandmarks) {
       rightHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, "Right")
     }
 
-    let leftHandRig = {}
+    let leftHandRig: any = {}
     if (results.leftHandLandmarks) {
       leftHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, "Left")
     }

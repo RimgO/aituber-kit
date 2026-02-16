@@ -25,7 +25,7 @@ const useIsMobile = () => {
     const checkMobile = () => {
       setIsMobile(
         window.innerWidth <= 768 ||
-          /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+        /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
       )
     }
 
@@ -264,31 +264,31 @@ export const Menu = () => {
                     multiModalMode,
                     customModel
                   ) && (
-                    <div className="order-4">
-                      <IconButton
-                        iconName="24/AddImage"
-                        isProcessing={false}
-                        onClick={() => imageFileInputRef.current?.click()}
-                      />
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        ref={imageFileInputRef}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            const reader = new FileReader()
-                            reader.onload = (e) => {
-                              const imageUrl = e.target?.result as string
-                              homeStore.setState({ modalImage: imageUrl })
+                      <div className="order-4">
+                        <IconButton
+                          iconName="24/AddImage"
+                          isProcessing={false}
+                          onClick={() => imageFileInputRef.current?.click()}
+                        />
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          ref={imageFileInputRef}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              const reader = new FileReader()
+                              reader.onload = (e) => {
+                                const imageUrl = e.target?.result as string
+                                homeStore.setState({ modalImage: imageUrl })
+                              }
+                              reader.readAsDataURL(file)
                             }
-                            reader.readAsDataURL(file)
-                          }
-                        }}
-                      />
-                    </div>
-                  )}
+                          }}
+                        />
+                      </div>
+                    )}
                 </>
               )}
               {youtubeMode && (
@@ -329,7 +329,9 @@ export const Menu = () => {
         latestAssistantMessage &&
         (!slideMode || !slideVisible) &&
         showAssistantText && <AssistantText message={latestAssistantMessage} />}
-      {showWebcam && navigator.mediaDevices && <Webcam />}
+      {showWebcam && navigator.mediaDevices && (
+        <Webcam onClose={() => menuStore.setState({ showWebcam: false })} />
+      )}
       {showCapture && <Capture />}
       {showPermissionModal && (
         <div className="modal">
