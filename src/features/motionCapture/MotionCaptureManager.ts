@@ -2,6 +2,7 @@ import { Holistic, Results } from '@mediapipe/holistic'
 // @ts-ignore
 import * as Kalidokit from 'kalidokit'
 import homeStore from '@/features/stores/home'
+import settingsStore from '@/features/stores/settings'
 
 // Singleton instance to prevent multiple WASM initializations
 let globalHolisticInstance: Holistic | null = null
@@ -88,6 +89,9 @@ export class MotionCaptureManager {
   }
 
   public solvePose(results: Results, videoElement: HTMLVideoElement) {
+    const settings = settingsStore.getState()
+    if (!settings.enableMotionCapture) return null
+
     if (!results.poseLandmarks && !results.faceLandmarks) return null
 
     // Check if the detected person is large enough (heuristic to avoid background people)
@@ -100,7 +104,6 @@ export class MotionCaptureManager {
 
       // If area is less than 3% of the frame, consider it a background person/noise and reset tracking
       if (area < 0.03) {
-        // console.log('Pose too small (area: ' + area.toFixed(4) + '), resetting tracker...')
         if (globalHolisticInstance) {
           globalHolisticInstance.reset()
         }
@@ -110,26 +113,62 @@ export class MotionCaptureManager {
 
     let poseRig: any = {}
     if (results.poseLandmarks && results.poseLandmarks.length >= 33) {
-      try {
-        // Fallback for 3D landmarks if missing to prevent Kalidokit crash
-        // @ts-ignore
-        const worldLandmarks = results.poseWorldLandmarks || results.poseLandmarks.map(l => ({ x: l.x, y: l.y, z: 0, visibility: l.visibility }))
+      // Only solve pose if any body part tracking is enabled
+      if (settings.enableUpperBodyTracking || settings.enableHipsTracking || settings.enableLegTracking) {
+        try {
+          // Fallback for 3D landmarks if missing to prevent Kalidokit crash
+          // @ts-ignore
+          const worldLandmarks = results.poseWorldLandmarks || results.poseLandmarks.map(l => ({ x: l.x, y: l.y, z: 0, visibility: l.visibility }))
 
-        poseRig = Kalidokit.Pose.solve(
-          results.poseLandmarks,
-          worldLandmarks,
-          {
-            runtime: 'mediapipe',
-            video: videoElement,
+          poseRig = Kalidokit.Pose.solve(
+            results.poseLandmarks,
+            worldLandmarks,
+            {
+              runtime: 'mediapipe',
+              video: videoElement,
+            }
+          )
+
+          // Filter Rig based on settings
+          if (!settings.enableHipsTracking) {
+            delete poseRig.Hips
+            delete poseRig.Root
           }
-        )
-      } catch (e) {
-        console.error('Kalidokit Pose solve error:', e)
+
+          if (!settings.enableUpperBodyTracking) {
+            delete poseRig.Spine
+            delete poseRig.Chest
+            delete poseRig.UpperChest
+            delete poseRig.Neck
+            delete poseRig.RightShoulder
+            delete poseRig.LeftShoulder
+            delete poseRig.RightArm
+            delete poseRig.LeftArm
+            delete poseRig.RightForeArm
+            delete poseRig.LeftForeArm
+            delete poseRig.RightHand
+            delete poseRig.LeftHand
+          }
+
+          if (!settings.enableLegTracking) {
+            delete poseRig.RightUpperLeg
+            delete poseRig.LeftUpperLeg
+            delete poseRig.RightLowerLeg
+            delete poseRig.LeftLowerLeg
+            delete poseRig.RightFoot
+            delete poseRig.LeftFoot
+            delete poseRig.RightToes
+            delete poseRig.LeftToes
+          }
+
+        } catch (e) {
+          console.error('Kalidokit Pose solve error:', e)
+        }
       }
     }
 
     let faceRig: any = {}
-    if (results.faceLandmarks) {
+    if (settings.enableFaceTracking && results.faceLandmarks) {
       faceRig = Kalidokit.Face.solve(
         results.faceLandmarks,
         {
@@ -139,7 +178,6 @@ export class MotionCaptureManager {
       )
 
       // Mouth Open Detection
-      // faceRig.mouth.y is openness (0 to 1)
       if (faceRig && faceRig.mouth) {
         const isOpen = (faceRig.mouth.y || 0) > 0.1
         const currentIsOpen = homeStore.getState().isMouthOpen
@@ -150,12 +188,12 @@ export class MotionCaptureManager {
     }
 
     let rightHandRig: any = {}
-    if (results.rightHandLandmarks) {
+    if (settings.enableHandTracking && results.rightHandLandmarks) {
       rightHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, "Right")
     }
 
     let leftHandRig: any = {}
-    if (results.leftHandLandmarks) {
+    if (settings.enableHandTracking && results.leftHandLandmarks) {
       leftHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, "Left")
     }
 
@@ -166,7 +204,7 @@ export class MotionCaptureManager {
       Face: faceRig
     }
 
-    // Gaze Detection Logic 
+    // Gaze Detection Logic
     let headRotation = { x: 0, y: 0, z: 0 }
     let hasHeadData = false
 

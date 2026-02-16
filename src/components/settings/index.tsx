@@ -16,6 +16,7 @@ import Log from './log'
 import Other from './other'
 import SpeechInput from './speechInput'
 import Images from './images'
+import MotionCapture from './motionCapture'
 
 type Props = {
   onClickClose: () => void
@@ -59,6 +60,7 @@ type TabKey =
   | 'log'
   | 'other'
   | 'speechInput'
+  | 'motionCapture'
 
 // アイコンのパスマッピング
 const tabIconMapping: Record<TabKey, string> = {
@@ -73,6 +75,7 @@ const tabIconMapping: Record<TabKey, string> = {
   log: '/images/setting-icons/conversation-history.svg',
   other: '/images/setting-icons/other-settings.svg',
   speechInput: '/images/setting-icons/microphone-settings.svg',
+  motionCapture: '/images/setting-icons/image-settings.svg',
 }
 
 const Main = () => {
@@ -140,6 +143,10 @@ const Main = () => {
       label: t('SlideSettings'),
     },
     {
+      key: 'motionCapture',
+      label: t('MotionCaptureSettings'),
+    },
+    {
       key: 'images',
       label: t('ImageSettings'),
     },
@@ -177,6 +184,8 @@ const Main = () => {
         return <Other />
       case 'speechInput':
         return <SpeechInput />
+      case 'motionCapture':
+        return <MotionCapture />
     }
   }
 
@@ -196,11 +205,10 @@ const Main = () => {
                     onClick={() => setActiveTab(tab.key)}
                   >
                     <div
-                      className={`w-5 h-5 mr-2 ${
-                        activeTab === tab.key
-                          ? 'icon-mask-active'
-                          : 'icon-mask-default'
-                      }`}
+                      className={`w-5 h-5 mr-2 ${activeTab === tab.key
+                        ? 'icon-mask-active'
+                        : 'icon-mask-default'
+                        }`}
                       style={{
                         maskImage: `url(${tabIconMapping[tab.key]})`,
                         maskSize: 'contain',
@@ -257,11 +265,10 @@ const Main = () => {
                     onClick={() => setActiveTab(tab.key)}
                   >
                     <div
-                      className={`w-5 h-5 mr-2 ${
-                        activeTab === tab.key
-                          ? 'icon-mask-active'
-                          : 'icon-mask-default'
-                      }`}
+                      className={`w-5 h-5 mr-2 ${activeTab === tab.key
+                        ? 'icon-mask-active'
+                        : 'icon-mask-default'
+                        }`}
                       style={{
                         maskImage: `url(${tabIconMapping[tab.key]})`,
                         maskSize: 'contain',

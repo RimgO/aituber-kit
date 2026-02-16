@@ -175,6 +175,16 @@ export interface PresetQuestion {
   order: number
 }
 
+// Motion Capture Settings
+interface MotionCaptureSettings {
+  enableMotionCapture: boolean
+  enableFaceTracking: boolean
+  enableHandTracking: boolean
+  enableUpperBodyTracking: boolean
+  enableHipsTracking: boolean
+  enableLegTracking: boolean
+}
+
 interface General {
   selectLanguage: Language
   changeEnglishToJapanese: boolean
@@ -223,7 +233,8 @@ export type SettingsState = APIKeys &
   Integrations &
   Character &
   General &
-  ModelType
+  ModelType &
+  MotionCaptureSettings
 
 // Function to get initial values from environment variables
 const getInitialValuesFromEnv = (): SettingsState => ({
@@ -538,6 +549,14 @@ const getInitialValuesFromEnv = (): SettingsState => ({
   angryMotionGroup: process.env.NEXT_PUBLIC_ANGRY_MOTION_GROUP || '',
   relaxedMotionGroup: process.env.NEXT_PUBLIC_RELAXED_MOTION_GROUP || '',
   surprisedMotionGroup: process.env.NEXT_PUBLIC_SURPRISED_MOTION_GROUP || '',
+
+  // Motion Capture
+  enableMotionCapture: true,
+  enableFaceTracking: true,
+  enableHandTracking: true,
+  enableUpperBodyTracking: true,
+  enableHipsTracking: true,
+  enableLegTracking: true,
 })
 
 const settingsStore = create<SettingsState>()(
@@ -710,6 +729,12 @@ const settingsStore = create<SettingsState>()(
       enableMultiModal: state.enableMultiModal,
       colorTheme: state.colorTheme,
       customModel: state.customModel,
+      enableMotionCapture: state.enableMotionCapture,
+      enableFaceTracking: state.enableFaceTracking,
+      enableHandTracking: state.enableHandTracking,
+      enableUpperBodyTracking: state.enableUpperBodyTracking,
+      enableHipsTracking: state.enableHipsTracking,
+      enableLegTracking: state.enableLegTracking,
     }),
   })
 )

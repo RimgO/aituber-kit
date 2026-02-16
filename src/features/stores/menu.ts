@@ -12,6 +12,7 @@ type SettingsTabKey =
   | 'images'
   | 'log'
   | 'other'
+  | 'motionCapture'
 interface MenuState {
   showWebcam: boolean
   showCapture: boolean
