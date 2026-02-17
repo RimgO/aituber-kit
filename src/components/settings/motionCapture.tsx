@@ -9,6 +9,7 @@ const MotionCapture = () => {
     const enableMotionCapture = settingsStore((s) => s.enableMotionCapture)
     const enableFaceTracking = settingsStore((s) => s.enableFaceTracking)
     const enableHandTracking = settingsStore((s) => s.enableHandTracking)
+    const enableFingerTracking = settingsStore((s) => s.enableFingerTracking)
     const enableUpperBodyTracking = settingsStore((s) => s.enableUpperBodyTracking)
     const enableHipsTracking = settingsStore((s) => s.enableHipsTracking)
     const enableLegTracking = settingsStore((s) => s.enableLegTracking)
@@ -39,6 +40,13 @@ const MotionCapture = () => {
                     <div className="mb-2 font-bold">{t('EnableHandTracking')}</div>
                     <TextButton onClick={() => settingsStore.setState({ enableHandTracking: !enableHandTracking })}>
                         {enableHandTracking ? t('StatusOn') : t('StatusOff')}
+                    </TextButton>
+                </div>
+
+                <div className="mb-4">
+                    <div className="mb-2 font-bold">{t('EnableFingerTracking')}</div>
+                    <TextButton onClick={() => settingsStore.setState({ enableFingerTracking: !enableFingerTracking })}>
+                        {enableFingerTracking ? t('StatusOn') : t('StatusOff')}
                     </TextButton>
                 </div>
 

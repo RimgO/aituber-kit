@@ -202,13 +202,13 @@ export class MotionCaptureManager {
     }
 
     let rightHandRig: any = {}
-    if (settings.enableHandTracking && results.rightHandLandmarks) {
-      rightHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, "Right")
+    if ((settings.enableHandTracking || settings.enableFingerTracking) && results.leftHandLandmarks) {
+      rightHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, "Right")
     }
 
     let leftHandRig: any = {}
-    if (settings.enableHandTracking && results.leftHandLandmarks) {
-      leftHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, "Left")
+    if ((settings.enableHandTracking || settings.enableFingerTracking) && results.rightHandLandmarks) {
+      leftHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, "Left")
     }
 
     const riggedPose = {

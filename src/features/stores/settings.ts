@@ -183,6 +183,7 @@ interface MotionCaptureSettings {
   enableUpperBodyTracking: boolean
   enableHipsTracking: boolean
   enableLegTracking: boolean
+  enableFingerTracking: boolean
 }
 
 interface General {
@@ -557,6 +558,7 @@ const getInitialValuesFromEnv = (): SettingsState => ({
   enableUpperBodyTracking: true,
   enableHipsTracking: true,
   enableLegTracking: true,
+  enableFingerTracking: true,
 })
 
 const settingsStore = create<SettingsState>()(
@@ -735,6 +737,7 @@ const settingsStore = create<SettingsState>()(
       enableUpperBodyTracking: state.enableUpperBodyTracking,
       enableHipsTracking: state.enableHipsTracking,
       enableLegTracking: state.enableLegTracking,
+      enableFingerTracking: state.enableFingerTracking,
     }),
   })
 )

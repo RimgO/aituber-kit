@@ -11,6 +11,7 @@
   "EnableMotionCapture": "Enable Motion Capture",
   "EnableFaceTracking": "Enable Face Tracking",
   "EnableHandTracking": "Enable Hand Tracking",
+  "EnableFingerTracking": "Enable Finger Tracking",
   "EnableUpperBodyTracking": "Enable Upper Body Tracking",
   "EnableHipsTracking": "Enable Hips Tracking",
   "EnableLegTracking": "Enable Leg Tracking",

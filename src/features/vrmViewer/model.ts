@@ -11,6 +11,7 @@ import { VRMLookAtSmootherLoaderPlugin } from '@/lib/VRMLookAtSmootherLoaderPlug
 import { LipSync } from '../lipSync/lipSync'
 import { EmoteController } from '../emoteController/emoteController'
 import { Talk } from '../messages/messages'
+import settingsStore from '@/features/stores/settings'
 
 /**
  * 3Dキャラクターを管理するクラス
@@ -90,12 +91,20 @@ export class Model {
       this.vrm.lookAt.autoUpdate = false
     }
 
-    const setRotation = (name: string, rotation: any, lerpAmount = 0.5) => {
+    const setRotation = (name: string, rotation: any) => {
       const boneNode = this.vrm?.humanoid.getNormalizedBoneNode(name as any)
       if (boneNode && rotation) {
         const targetQuat = new THREE.Quaternion().setFromEuler(
           new THREE.Euler(rotation.x, rotation.y, rotation.z, 'YXZ')
         )
+
+        // Anti-jitter: Calculate angular distance
+        const angle = boneNode.quaternion.angleTo(targetQuat)
+
+        // Dynamic lerp: High dampening (0.05) for small movements (< 3 degrees) to reduce jitter
+        // Normal lerp (0.3) for larger movements to maintain responsiveness
+        const lerpAmount = angle < 0.05 ? 0.05 : 0.3
+
         boneNode.quaternion.slerp(targetQuat, lerpAmount)
       }
     }
@@ -108,11 +117,19 @@ export class Model {
     if (riggedPose.Hips) {
       const hips = this.vrm.humanoid.getNormalizedBoneNode('hips')
       if (hips) {
-        hips.position.set(
+        const targetPos = new THREE.Vector3(
           -riggedPose.Hips.worldPosition.x,
           riggedPose.Hips.worldPosition.y + 1.0,
           -riggedPose.Hips.worldPosition.z
         )
+
+        // Anti-jitter for position
+        // If distance is small (< 2cm), use high dampening
+        const dist = hips.position.distanceTo(targetPos)
+        const posLerp = dist < 0.02 ? 0.05 : 0.3
+
+        hips.position.lerp(targetPos, posLerp)
+
         if (riggedPose.Hips.rotation) {
           setRotation('hips', riggedPose.Hips.rotation)
         }
@@ -127,16 +144,39 @@ export class Model {
       setRotation('rightLowerArm', riggedPose.RightLowerArm)
     if (riggedPose.LeftLowerArm)
       setRotation('leftLowerArm', riggedPose.LeftLowerArm)
+
+    // Fingers
+    const { enableFingerTracking } = settingsStore.getState()
+    if (enableFingerTracking) {
+      const sides = ['Right', 'Left']
+      const fingers = ['Ring', 'Index', 'Little', 'Middle']
+      const segments = ['Proximal', 'Intermediate', 'Distal']
+
+      sides.forEach(side => {
+        const vrmSide = side.toLowerCase()
+
+        // Thumb mapping (Kalidokit -> VRM): Proximal->Metacarpal, Intermediate->Proximal, Distal->Distal
+        if (riggedPose[`${side}ThumbProximal`]) setRotation(`${vrmSide}ThumbMetacarpal`, riggedPose[`${side}ThumbProximal`])
+        if (riggedPose[`${side}ThumbIntermediate`]) setRotation(`${vrmSide}ThumbProximal`, riggedPose[`${side}ThumbIntermediate`])
+        if (riggedPose[`${side}ThumbDistal`]) setRotation(`${vrmSide}ThumbDistal`, riggedPose[`${side}ThumbDistal`])
+
+        // Other fingers
+        fingers.forEach(finger => {
+          segments.forEach(seg => {
+            const key = `${side}${finger}${seg}`
+            const vrmBone = `${vrmSide}${finger}${seg}`
+            if (riggedPose[key]) setRotation(vrmBone, riggedPose[key])
+          })
+        })
+      })
+    }
+
     if (riggedPose.RightHand) setRotation('rightHand', riggedPose.RightHand)
     if (riggedPose.LeftHand) setRotation('leftHand', riggedPose.LeftHand)
     if (riggedPose.RightUpperLeg)
       setRotation('rightUpperLeg', riggedPose.RightUpperLeg)
     if (riggedPose.LeftUpperLeg)
       setRotation('leftUpperLeg', riggedPose.LeftUpperLeg)
-    if (riggedPose.RightLowerLeg)
-      setRotation('rightLowerLeg', riggedPose.RightLowerLeg)
-    if (riggedPose.LeftLowerLeg)
-      setRotation('leftLowerLeg', riggedPose.LeftLowerLeg)
     if (riggedPose.RightLowerLeg)
       setRotation('rightLowerLeg', riggedPose.RightLowerLeg)
     if (riggedPose.LeftLowerLeg)
@@ -158,10 +198,6 @@ export class Model {
       }
 
       // Mouth (Lipsync)
-      // Note: If LipSync via Audio is active, this might conflict.
-      // We should prioritise Audio LipSync if speaking?
-      // But here we just apply what we have.
-      // Kalidokit gives shape: { A, E, I, O, U }
       if (face.mouth && face.mouth.shape) {
         const shape = face.mouth.shape
         em.setValue('aa', shape.A || 0)
