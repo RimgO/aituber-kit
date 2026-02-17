@@ -33,7 +33,7 @@ const rigArm = (UpperArm: any, LowerArm: any, Hand: any, side = RIGHT) => {
     UpperArm.x = clamp(UpperArm.x, -0.5, PI);
 
     // Relaxed LowerArm.x clamp to allow more twist
-    LowerArm.x = clamp(LowerArm.x, -0.5, 0.5);
+    LowerArm.x = clamp(LowerArm.x, -2.0, 2.0);
 
     Hand.y = clamp(Hand.z * 2, -0.6, 0.6); // side to side
     Hand.z = Hand.z * -2.3 * invert; // up down
