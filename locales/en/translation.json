@@ -15,6 +15,7 @@
   "EnableUpperBodyTracking": "Enable Upper Body Tracking",
   "EnableHipsTracking": "Enable Hips Tracking",
   "EnableLegTracking": "Enable Leg Tracking",
+  "ShowDebugSkeleton": "Show Debug Skeleton",
   "LogSettings": "Conversation History",
   "OtherSettings": "Other",
   "ExternalLinkageMode": "External Connection Mode (Beta)",

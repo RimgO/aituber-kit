@@ -29,7 +29,7 @@ export class MotionCaptureManager {
       console.log('Waiting for existing initialization...')
       await initializationPromise
       if (globalHolisticInstance) {
-        ;(globalHolisticInstance as Holistic).onResults(
+        ; (globalHolisticInstance as Holistic).onResults(
           this.handleResults.bind(this)
         )
       }
@@ -135,8 +135,8 @@ export class MotionCaptureManager {
             }))
 
           poseRig = Kalidokit.Pose.solve(
-            results.poseLandmarks,
             worldLandmarks,
+            results.poseLandmarks,
             {
               runtime: 'mediapipe',
               video: videoElement,
@@ -144,10 +144,9 @@ export class MotionCaptureManager {
           )
 
           // Overwrite arm rigs with custom solver for better upper/lower arm tracking
-          customArms = solveArms(results.poseLandmarks)
+          customArms = solveArms(worldLandmarks)
 
           if (settings.enableUpperBodyTracking) {
-            poseRig.RightUpperArm = customArms.RightUpperArm
             poseRig.RightUpperArm = customArms.RightUpperArm
             if (poseRig.RightLowerArm && customArms.RightLowerArm) {
               poseRig.RightLowerArm = {

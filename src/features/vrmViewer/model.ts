@@ -24,6 +24,11 @@ export class Model {
   private _lookAtTargetParent: THREE.Object3D
   private _lipSync?: LipSync
 
+  // For Debug Skeleton Overlay
+  private _debugSkeletonGroup?: THREE.Group
+  private _debugPoints?: THREE.Points
+  private _debugLines?: THREE.LineSegments
+
   constructor(lookAtTargetParent: THREE.Object3D) {
     this._lookAtTargetParent = lookAtTargetParent
     this._lipSync = new LipSync(new AudioContext(), { forceStart: true })
@@ -53,6 +58,12 @@ export class Model {
     if (this.vrm) {
       VRMUtils.deepDispose(this.vrm.scene)
       this.vrm = null
+    }
+    if (this._debugSkeletonGroup && this._debugSkeletonGroup.parent) {
+      this._debugSkeletonGroup.parent.remove(this._debugSkeletonGroup)
+      this._debugSkeletonGroup = undefined
+      this._debugPoints = undefined
+      this._debugLines = undefined
     }
   }
 
@@ -261,5 +272,102 @@ export class Model {
     this.emoteController?.update(delta)
     this.mixer?.update(delta)
     this.vrm?.update(delta)
+  }
+
+  /**
+   * 骨格情報をデバッグ描画する
+   */
+  public drawDebugSkeleton(poseWorldLandmarks: any) {
+    if (!settingsStore.getState().showDebugSkeleton) {
+      if (this._debugSkeletonGroup) {
+        this._debugSkeletonGroup.visible = false
+      }
+      return
+    }
+
+    if (!poseWorldLandmarks || poseWorldLandmarks.length === 0) return
+
+    if (!this._debugSkeletonGroup) {
+      this._debugSkeletonGroup = new THREE.Group()
+      if (this.vrm) {
+        if (this.vrm.scene.parent) {
+          this.vrm.scene.parent.add(this._debugSkeletonGroup)
+        } else {
+          this.vrm.scene.add(this._debugSkeletonGroup)
+        }
+      }
+
+      // Create Points
+      const pointsGeo = new THREE.BufferGeometry()
+      const numPoints = 33
+      const positions = new Float32Array(numPoints * 3)
+      pointsGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+      const pointsMat = new THREE.PointsMaterial({
+        color: 0x00ff00,
+        size: 0.05,
+        depthTest: false,
+        depthWrite: false
+      })
+      this._debugPoints = new THREE.Points(pointsGeo, pointsMat)
+      this._debugPoints.renderOrder = 999
+      this._debugSkeletonGroup.add(this._debugPoints)
+
+      // Create Lines
+      const linesGeo = new THREE.BufferGeometry()
+      const POSE_CONNECTIONS = [
+        [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8], [9, 10], [11, 12],
+        [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], [17, 19], [12, 14], [14, 16],
+        [16, 18], [16, 20], [16, 22], [18, 20], [11, 23], [12, 24], [23, 24], [23, 25],
+        [25, 27], [27, 29], [27, 31], [29, 31], [24, 26], [26, 28], [28, 30], [28, 32], [30, 32]
+      ]
+      const linePositions = new Float32Array(POSE_CONNECTIONS.length * 2 * 3)
+      linesGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3))
+      const linesMat = new THREE.LineBasicMaterial({
+        color: 0xff0000,
+        depthTest: false,
+        depthWrite: false
+      })
+      this._debugLines = new THREE.LineSegments(linesGeo, linesMat)
+      this._debugLines.renderOrder = 999
+      this._debugSkeletonGroup.add(this._debugLines)
+    }
+
+    this._debugSkeletonGroup.visible = true
+
+    // Update Points
+    const positions = this._debugPoints!.geometry.attributes.position.array as Float32Array
+    for (let i = 0; i < 33; i++) {
+      const lm = poseWorldLandmarks[i]
+      if (lm) {
+        positions[i * 3] = -lm.x
+        positions[i * 3 + 1] = -lm.y + 1.0 // Add fixed offset to roughly align with VRM Y origin
+        positions[i * 3 + 2] = -lm.z
+      }
+    }
+    this._debugPoints!.geometry.attributes.position.needsUpdate = true
+
+    // Update Lines
+    const linePositions = this._debugLines!.geometry.attributes.position.array as Float32Array
+    const POSE_CONNECTIONS = [
+      [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8], [9, 10], [11, 12],
+      [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], [17, 19], [12, 14], [14, 16],
+      [16, 18], [16, 20], [16, 22], [18, 20], [11, 23], [12, 24], [23, 24], [23, 25],
+      [25, 27], [27, 29], [27, 31], [29, 31], [24, 26], [26, 28], [28, 30], [28, 32], [30, 32]
+    ]
+    let idx = 0
+    for (const [startIdx, endIdx] of POSE_CONNECTIONS) {
+      const p1 = poseWorldLandmarks[startIdx]
+      const p2 = poseWorldLandmarks[endIdx]
+      if (p1 && p2) {
+        linePositions[idx++] = -p1.x
+        linePositions[idx++] = -p1.y + 1.0
+        linePositions[idx++] = -p1.z
+
+        linePositions[idx++] = -p2.x
+        linePositions[idx++] = -p2.y + 1.0
+        linePositions[idx++] = -p2.z
+      }
+    }
+    this._debugLines!.geometry.attributes.position.needsUpdate = true
   }
 }

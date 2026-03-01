@@ -15,6 +15,7 @@ const MotionCapture = () => {
   )
   const enableHipsTracking = settingsStore((s) => s.enableHipsTracking)
   const enableLegTracking = settingsStore((s) => s.enableLegTracking)
+  const showDebugSkeleton = settingsStore((s) => s.showDebugSkeleton)
 
   return (
     <div className="flex flex-col gap-4">
@@ -110,6 +111,17 @@ const MotionCapture = () => {
             }
           >
             {enableLegTracking ? t('StatusOn') : t('StatusOff')}
+          </TextButton>
+        </div>
+
+        <div className="mb-4">
+          <div className="mb-2 font-bold">{t('ShowDebugSkeleton') || 'デバッグスケルトン表示 (Debug Skeleton)'}</div>
+          <TextButton
+            onClick={() =>
+              settingsStore.setState({ showDebugSkeleton: !showDebugSkeleton })
+            }
+          >
+            {showDebugSkeleton ? t('StatusOn') : t('StatusOff')}
           </TextButton>
         </div>
       </div>

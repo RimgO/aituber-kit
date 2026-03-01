@@ -16,6 +16,7 @@
   "EnableUpperBodyTracking": "上半身トラッキングを有効にする",
   "EnableHipsTracking": "腰トラッキングを有効にする",
   "EnableLegTracking": "足トラッキングを有効にする",
+  "ShowDebugSkeleton": "デバッグ骨格を表示する",
   "LogSettings": "会話履歴",
   "OtherSettings": "その他",
   "ExternalLinkageMode": "外部連携モード（ベータ版）",

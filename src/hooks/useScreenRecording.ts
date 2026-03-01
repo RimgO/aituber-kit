@@ -12,15 +12,14 @@ export const useScreenRecording = () => {
       // selfBrowserSurface: 'include' and preferCurrentTab keep the focus friendly to the current app.
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          displaySurface: 'window',
-          // @ts-ignore: Some browsers support these hints
-          selfBrowserSurface: 'include',
-          preferCurrentTab: false, // User specifically asked for 'window'
+          displaySurface: 'browser',
         },
         audio: {
           // @ts-ignore: System audio hint
           suppressLocalAudioPlayback: false,
         },
+        // @ts-ignore: preferCurrentTab is a standard hint for current tab recording
+        preferCurrentTab: true,
       } as DisplayMediaStreamOptions)
 
       console.log('useScreenRecording: Stream acquired', stream.id)
