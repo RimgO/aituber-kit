@@ -170,7 +170,7 @@ homeStore.subscribe((state, prevState) => {
         (msg, idx) =>
           idx >= lastSavedLogLength || // 追加分
           prevState.chatLog.find((p) => p.id === msg.id)?.content !==
-          msg.content // 更新分
+            msg.content // 更新分
       )
 
       if (newMessagesToSave.length > 0) {

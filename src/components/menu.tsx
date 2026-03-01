@@ -12,6 +12,7 @@ import Settings from './settings'
 import { Webcam } from './webcam'
 import Slides from './slides'
 import Capture from './capture'
+import { useScreenRecording } from '@/hooks/useScreenRecording'
 import { isMultiModalAvailable } from '@/features/constants/aiModels'
 import { AIService } from '@/features/constants/settings'
 import { getLatestAssistantMessage } from '@/utils/assistantMessageUtils'
@@ -25,7 +26,7 @@ const useIsMobile = () => {
     const checkMobile = () => {
       setIsMobile(
         window.innerWidth <= 768 ||
-        /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+          /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
       )
     }
 
@@ -54,6 +55,9 @@ export const Menu = () => {
   const showCapture = menuStore((s) => s.showCapture)
   const slidePlaying = slideStore((s) => s.isPlaying)
   const showAssistantText = settingsStore((s) => s.showAssistantText)
+  const isRecording = menuStore((s) => s.isRecording)
+
+  const { startRecording, stopRecording } = useScreenRecording()
 
   const [showSettings, setShowSettings] = useState(false)
   // 会話ログ表示モード
@@ -140,6 +144,18 @@ export const Menu = () => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === '.') {
         setShowSettings((prevState) => !prevState)
+      }
+
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.shiftKey &&
+        event.code === 'Digit6'
+      ) {
+        if (menuStore.getState().isRecording) {
+          stopRecording()
+        } else {
+          startRecording()
+        }
       }
     }
 
@@ -264,31 +280,31 @@ export const Menu = () => {
                     multiModalMode,
                     customModel
                   ) && (
-                      <div className="order-4">
-                        <IconButton
-                          iconName="24/AddImage"
-                          isProcessing={false}
-                          onClick={() => imageFileInputRef.current?.click()}
-                        />
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          ref={imageFileInputRef}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              const reader = new FileReader()
-                              reader.onload = (e) => {
-                                const imageUrl = e.target?.result as string
-                                homeStore.setState({ modalImage: imageUrl })
-                              }
-                              reader.readAsDataURL(file)
+                    <div className="order-4">
+                      <IconButton
+                        iconName="24/AddImage"
+                        isProcessing={false}
+                        onClick={() => imageFileInputRef.current?.click()}
+                      />
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        ref={imageFileInputRef}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            const reader = new FileReader()
+                            reader.onload = (e) => {
+                              const imageUrl = e.target?.result as string
+                              homeStore.setState({ modalImage: imageUrl })
                             }
-                          }}
-                        />
-                      </div>
-                    )}
+                            reader.readAsDataURL(file)
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
                 </>
               )}
               {youtubeMode && (
@@ -316,6 +332,19 @@ export const Menu = () => {
                   />
                 </div>
               )}
+              <div className="order-6">
+                <IconButton
+                  iconName={isRecording ? 'stop' : 'record'}
+                  isProcessing={false}
+                  onClick={isRecording ? stopRecording : startRecording}
+                  backgroundColor={
+                    isRecording
+                      ? 'bg-secondary hover:bg-secondary-hover active:bg-secondary-press'
+                      : undefined
+                  }
+                  title={isRecording ? t('StopRecording') : t('StartRecording')}
+                />
+              </div>
             </>
           )}
         </div>

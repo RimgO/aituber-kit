@@ -67,12 +67,15 @@ export const MotionCapture = () => {
       }
     })
 
-    manager.initialize().then(() => {
-      setIsThinking(false)
-      manager.start()
-    }).catch(err => {
-      console.error('MotionCapture: Initialization failed', err)
-    })
+    manager
+      .initialize()
+      .then(() => {
+        setIsThinking(false)
+        manager.start()
+      })
+      .catch((err) => {
+        console.error('MotionCapture: Initialization failed', err)
+      })
 
     managerRef.current = manager
 
@@ -93,7 +96,6 @@ export const MotionCapture = () => {
     }
   }, [])
 
-
   return (
     <>
       {isMinimized && (
@@ -109,10 +111,11 @@ export const MotionCapture = () => {
       )}
 
       <div
-        className={`absolute bottom-5 right-5 w-64 h-48 bg-black rounded-lg border border-cyan-500/30 overflow-hidden shadow-2xl z-50 group transition-all duration-300 ${isMinimized
+        className={`absolute bottom-5 right-5 w-64 h-48 bg-black rounded-lg border border-cyan-500/30 overflow-hidden shadow-2xl z-50 group transition-all duration-300 ${
+          isMinimized
             ? 'opacity-0 pointer-events-none translate-y-4'
             : 'opacity-100'
-          }`}
+        }`}
       >
         <video
           ref={videoRef}

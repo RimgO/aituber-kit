@@ -20,6 +20,7 @@ interface MenuState {
   bgFileInput: HTMLInputElement | null
   slideVisible: boolean
   activeSettingsTab: SettingsTabKey
+  isRecording: boolean
 }
 
 const menuStore = create<MenuState>((set, get) => ({
@@ -29,6 +30,7 @@ const menuStore = create<MenuState>((set, get) => ({
   bgFileInput: null,
   slideVisible: false,
   activeSettingsTab: 'description',
+  isRecording: false,
 }))
 
 export default menuStore

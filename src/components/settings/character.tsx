@@ -555,7 +555,7 @@ const Character = () => {
             >
               {vrmFiles.map((file) => (
                 <option key={file} value={`/vrm/${file}`}>
-                  {file.replace('.vrm', '')}
+                  {file.replace(/\.(vrm|glb)$/i, '')}
                 </option>
               ))}
             </select>
@@ -565,7 +565,7 @@ const Character = () => {
                 onClick={() => {
                   const { fileInput } = menuStore.getState()
                   if (fileInput) {
-                    fileInput.accept = '.vrm'
+                    fileInput.accept = '.vrm,.glb'
                     fileInput.onchange = (e) => {
                       const file = (e.target as HTMLInputElement).files?.[0]
                       if (file) {

@@ -152,17 +152,26 @@ export class Model {
       const fingers = ['Ring', 'Index', 'Little', 'Middle']
       const segments = ['Proximal', 'Intermediate', 'Distal']
 
-      sides.forEach(side => {
+      sides.forEach((side) => {
         const vrmSide = side.toLowerCase()
 
         // Thumb mapping (Kalidokit -> VRM): Proximal->Metacarpal, Intermediate->Proximal, Distal->Distal
-        if (riggedPose[`${side}ThumbProximal`]) setRotation(`${vrmSide}ThumbMetacarpal`, riggedPose[`${side}ThumbProximal`])
-        if (riggedPose[`${side}ThumbIntermediate`]) setRotation(`${vrmSide}ThumbProximal`, riggedPose[`${side}ThumbIntermediate`])
-        if (riggedPose[`${side}ThumbDistal`]) setRotation(`${vrmSide}ThumbDistal`, riggedPose[`${side}ThumbDistal`])
+        if (riggedPose[`${side}ThumbProximal`])
+          setRotation(
+            `${vrmSide}ThumbMetacarpal`,
+            riggedPose[`${side}ThumbProximal`]
+          )
+        if (riggedPose[`${side}ThumbIntermediate`])
+          setRotation(
+            `${vrmSide}ThumbProximal`,
+            riggedPose[`${side}ThumbIntermediate`]
+          )
+        if (riggedPose[`${side}ThumbDistal`])
+          setRotation(`${vrmSide}ThumbDistal`, riggedPose[`${side}ThumbDistal`])
 
         // Other fingers
-        fingers.forEach(finger => {
-          segments.forEach(seg => {
+        fingers.forEach((finger) => {
+          segments.forEach((seg) => {
             const key = `${side}${finger}${seg}`
             const vrmBone = `${vrmSide}${finger}${seg}`
             if (riggedPose[key]) setRotation(vrmBone, riggedPose[key])

@@ -139,6 +139,8 @@
   "NotConnectedToExternalAssistant": "外部アシスタントと接続されていません。",
   "APIKeyNotEntered": "APIキーが入力されていません。",
   "ChatLog": "会話ログ",
+  "StartRecording": "録画開始",
+  "StopRecording": "録画停止",
   "EnterYourQuestion": "聞きたいことをいれてね",
   "AnswerGenerating": "回答生成中",
   "AboutThisApplication": "このアプリケーションについて",

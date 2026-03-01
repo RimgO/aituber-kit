@@ -39,7 +39,11 @@ export const MessageInputContainer = ({ onChatProcessStart }: Props) => {
   useEffect(() => {
     // Trigger if Looking OR Mouth is Open
     const isActive = isLookingAtCamera || isMouthOpen
-    const canStart = !isSpeaking && !chatProcessing && !isListening && !continuousMicListeningMode
+    const canStart =
+      !isSpeaking &&
+      !chatProcessing &&
+      !isListening &&
+      !continuousMicListeningMode
 
     if (isActive && canStart) {
       if (!autoStartTimerRef.current) {
@@ -61,7 +65,15 @@ export const MessageInputContainer = ({ onChatProcessStart }: Props) => {
         clearTimeout(autoStartTimerRef.current)
       }
     }
-  }, [isLookingAtCamera, isMouthOpen, isSpeaking, chatProcessing, isListening, continuousMicListeningMode, startListening])
+  }, [
+    isLookingAtCamera,
+    isMouthOpen,
+    isSpeaking,
+    chatProcessing,
+    isListening,
+    continuousMicListeningMode,
+    startListening,
+  ])
 
   // 常時マイク入力モードの切り替え
   const toggleContinuousMode = () => {

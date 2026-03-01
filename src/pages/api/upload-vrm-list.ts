@@ -11,7 +11,9 @@ export const config = {
 const formOptions = {
   maxFileSize: 200 * 1024 * 1024,
   filter: ({ mimetype }: { mimetype: string | null }) =>
-    mimetype === 'application/octet-stream' || mimetype === 'model/vrm',
+    mimetype === 'application/octet-stream' ||
+    mimetype === 'model/vrm' ||
+    mimetype === 'model/gltf-binary',
 }
 
 export default async function handler(
@@ -32,10 +34,11 @@ export default async function handler(
       return res.status(400).json({ error: 'No file uploaded' })
     }
 
-    if (!file.originalFilename?.toLowerCase().endsWith('.vrm')) {
+    const lowerFilename = file.originalFilename?.toLowerCase() || ''
+    if (!lowerFilename.endsWith('.vrm') && !lowerFilename.endsWith('.glb')) {
       return res.status(400).json({
         error: 'Invalid file type',
-        message: 'Only VRM files can be uploaded',
+        message: 'Only VRM or GLB files can be uploaded',
       })
     }
 

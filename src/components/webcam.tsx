@@ -81,8 +81,6 @@ export const Webcam = ({ onClose }: WebcamProps) => {
     setSelectedDevice(newDevice)
   }, [devices, selectedDevice])
 
-
-
   return (
     <VideoDisplay
       videoRef={videoRef}

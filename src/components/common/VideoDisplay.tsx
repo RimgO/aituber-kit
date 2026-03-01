@@ -257,8 +257,9 @@ export const VideoDisplay = forwardRef<HTMLDivElement, VideoDisplayProps>(
               autoPlay
               playsInline
               muted
-              className={`w-full h-full object-top ${useVideoAsBackground ? 'invisible' : ''
-                }`}
+              className={`w-full h-full object-top ${
+                useVideoAsBackground ? 'invisible' : ''
+              }`}
             />
             {/* Resize handles */}
             {!isExpanded &&

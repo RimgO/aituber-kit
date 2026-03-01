@@ -29,7 +29,9 @@ export class MotionCaptureManager {
       console.log('Waiting for existing initialization...')
       await initializationPromise
       if (globalHolisticInstance) {
-        ; (globalHolisticInstance as Holistic).onResults(this.handleResults.bind(this))
+        ;(globalHolisticInstance as Holistic).onResults(
+          this.handleResults.bind(this)
+        )
       }
       return
     }
@@ -113,13 +115,24 @@ export class MotionCaptureManager {
     }
 
     let poseRig: any = {}
+    let customArms: any = {}
     if (results.poseLandmarks && results.poseLandmarks.length >= 33) {
       // Only solve pose if any body part tracking is enabled
-      if (settings.enableUpperBodyTracking || settings.enableHipsTracking || settings.enableLegTracking) {
+      if (
+        settings.enableUpperBodyTracking ||
+        settings.enableHipsTracking ||
+        settings.enableLegTracking
+      ) {
         try {
           // Fallback for 3D landmarks if missing to prevent Kalidokit crash
-          // @ts-ignore
-          const worldLandmarks = results.poseWorldLandmarks || results.poseLandmarks.map(l => ({ x: l.x, y: l.y, z: 0, visibility: l.visibility }))
+          const worldLandmarks =
+            (results as any).poseWorldLandmarks ||
+            results.poseLandmarks.map((l) => ({
+              x: l.x,
+              y: l.y,
+              z: 0,
+              visibility: l.visibility,
+            }))
 
           poseRig = Kalidokit.Pose.solve(
             results.poseLandmarks,
@@ -131,15 +144,29 @@ export class MotionCaptureManager {
           )
 
           // Overwrite arm rigs with custom solver for better upper/lower arm tracking
-          const customArms = solveArms(results.poseLandmarks)
+          customArms = solveArms(results.poseLandmarks)
 
           if (settings.enableUpperBodyTracking) {
             poseRig.RightUpperArm = customArms.RightUpperArm
-            poseRig.RightLowerArm = customArms.RightLowerArm
+            poseRig.RightUpperArm = customArms.RightUpperArm
+            if (poseRig.RightLowerArm && customArms.RightLowerArm) {
+              poseRig.RightLowerArm = {
+                ...customArms.RightLowerArm,
+                x: poseRig.RightLowerArm.x,
+              }
+            } else {
+              poseRig.RightLowerArm = customArms.RightLowerArm
+            }
+
             poseRig.LeftUpperArm = customArms.LeftUpperArm
-            poseRig.LeftLowerArm = customArms.LeftLowerArm
-            poseRig.RightHand = customArms.RightHand
-            poseRig.LeftHand = customArms.LeftHand
+            if (poseRig.LeftLowerArm && customArms.LeftLowerArm) {
+              poseRig.LeftLowerArm = {
+                ...customArms.LeftLowerArm,
+                x: poseRig.LeftLowerArm.x,
+              }
+            } else {
+              poseRig.LeftLowerArm = customArms.LeftLowerArm
+            }
           }
 
           // Filter Rig based on settings
@@ -163,7 +190,6 @@ export class MotionCaptureManager {
             delete poseRig.LeftHand
           }
 
-
           if (!settings.enableLegTracking) {
             delete poseRig.RightUpperLeg
             delete poseRig.LeftUpperLeg
@@ -174,7 +200,6 @@ export class MotionCaptureManager {
             delete poseRig.RightToes
             delete poseRig.LeftToes
           }
-
         } catch (e) {
           console.error('Kalidokit Pose solve error:', e)
         }
@@ -183,13 +208,10 @@ export class MotionCaptureManager {
 
     let faceRig: any = {}
     if (settings.enableFaceTracking && results.faceLandmarks) {
-      faceRig = Kalidokit.Face.solve(
-        results.faceLandmarks,
-        {
-          runtime: 'mediapipe',
-          video: videoElement,
-        }
-      )
+      faceRig = Kalidokit.Face.solve(results.faceLandmarks, {
+        runtime: 'mediapipe',
+        video: videoElement,
+      })
 
       // Mouth Open Detection
       if (faceRig && faceRig.mouth) {
@@ -202,20 +224,38 @@ export class MotionCaptureManager {
     }
 
     let rightHandRig: any = {}
-    if ((settings.enableHandTracking || settings.enableFingerTracking) && results.leftHandLandmarks) {
-      rightHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, "Right")
+    if (
+      (settings.enableHandTracking || settings.enableFingerTracking) &&
+      results.leftHandLandmarks
+    ) {
+      rightHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, 'Right')
+      // Fix palm facing slightly down: Lift wrist up and use Hand solver's wrist
+      if (rightHandRig?.RightWrist) {
+        rightHandRig.RightHand = rightHandRig.RightWrist
+        // Lift palm up
+        rightHandRig.RightHand.x += 0.4
+      }
     }
 
     let leftHandRig: any = {}
-    if ((settings.enableHandTracking || settings.enableFingerTracking) && results.rightHandLandmarks) {
-      leftHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, "Left")
+    if (
+      (settings.enableHandTracking || settings.enableFingerTracking) &&
+      results.rightHandLandmarks
+    ) {
+      leftHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, 'Left')
+      // Fix palm facing slightly down: Lift wrist up and use Hand solver's wrist
+      if (leftHandRig?.LeftWrist) {
+        leftHandRig.LeftHand = leftHandRig.LeftWrist
+        // Lift palm up
+        leftHandRig.LeftHand.x += 0.4
+      }
     }
 
     const riggedPose = {
       ...poseRig,
       ...(rightHandRig || {}),
       ...(leftHandRig || {}),
-      Face: faceRig
+      Face: faceRig,
     }
 
     // Gaze Detection Logic
@@ -239,7 +279,10 @@ export class MotionCaptureManager {
 
           const yaw = (nose.x - earMidX) * 10
           const pitch = (nose.y - earMidY) * 10
-          const roll = -Math.atan2(rightEar.y - leftEar.y, rightEar.x - leftEar.x)
+          const roll = -Math.atan2(
+            rightEar.y - leftEar.y,
+            rightEar.x - leftEar.x
+          )
 
           headRotation = { x: pitch, y: yaw, z: roll }
           hasHeadData = true
@@ -253,8 +296,7 @@ export class MotionCaptureManager {
       let checkZ = Math.abs(z)
       if (checkZ > 2.0) checkZ = Math.abs(checkZ - Math.PI)
 
-      const isLooking =
-        Math.abs(x) < 0.3 && Math.abs(y) < 0.3 && checkZ < 0.3
+      const isLooking = Math.abs(x) < 0.3 && Math.abs(y) < 0.3 && checkZ < 0.3
 
       const currentIsLooking = homeStore.getState().isLookingAtCamera
       if (currentIsLooking !== isLooking) {

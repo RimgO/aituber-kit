@@ -205,10 +205,11 @@ const Main = () => {
                     onClick={() => setActiveTab(tab.key)}
                   >
                     <div
-                      className={`w-5 h-5 mr-2 ${activeTab === tab.key
-                        ? 'icon-mask-active'
-                        : 'icon-mask-default'
-                        }`}
+                      className={`w-5 h-5 mr-2 ${
+                        activeTab === tab.key
+                          ? 'icon-mask-active'
+                          : 'icon-mask-default'
+                      }`}
                       style={{
                         maskImage: `url(${tabIconMapping[tab.key]})`,
                         maskSize: 'contain',
@@ -265,10 +266,11 @@ const Main = () => {
                     onClick={() => setActiveTab(tab.key)}
                   >
                     <div
-                      className={`w-5 h-5 mr-2 ${activeTab === tab.key
-                        ? 'icon-mask-active'
-                        : 'icon-mask-default'
-                        }`}
+                      className={`w-5 h-5 mr-2 ${
+                        activeTab === tab.key
+                          ? 'icon-mask-active'
+                          : 'icon-mask-default'
+                      }`}
                       style={{
                         maskImage: `url(${tabIconMapping[tab.key]})`,
                         maskSize: 'contain',

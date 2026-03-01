@@ -149,7 +149,9 @@ export const useBrowserSpeechRecognition = (
     } catch (error) {
       // InvalidStateErrorの場合は、既に開始されているとみなす
       if (error instanceof DOMException && error.name === 'InvalidStateError') {
-        console.log('Recognition is already running (InvalidStateError), syncing state')
+        console.log(
+          'Recognition is already running (InvalidStateError), syncing state'
+        )
         // 既に実行中なので、リスニング状態を更新する
         isListeningRef.current = true
         setIsListening(true)

@@ -13,7 +13,11 @@ export default async function handler(
       return res.status(404).json({ error: 'VRM directory not found' })
     }
     const files = await fs.promises.readdir(vrmDir)
-    const vrmFiles = files.filter((file) => file.endsWith('.vrm'))
+    const vrmFiles = files.filter(
+      (file) =>
+        file.toLowerCase().endsWith('.vrm') ||
+        file.toLowerCase().endsWith('.glb')
+    )
     res.status(200).json(vrmFiles)
   } catch (error) {
     console.error('Error reading VRM directory:', error)
