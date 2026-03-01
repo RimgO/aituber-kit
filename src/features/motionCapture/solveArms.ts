@@ -15,7 +15,7 @@ const rigArm = (UpperArm: any, LowerArm: any, Hand: any, side = RIGHT) => {
   // Invert modifier based on left vs right side
   const invert = side === RIGHT ? 1 : -1
 
-  UpperArm.z *= -2.3 * invert
+  UpperArm.z *= -1.5 * invert
 
   // Modify UpperArm rotationY by LowerArm X and Z rotations
   // Reduced dampening factor to improve lower arm responsiveness
@@ -25,15 +25,15 @@ const rigArm = (UpperArm: any, LowerArm: any, Hand: any, side = RIGHT) => {
 
   UpperArm.x -= 0.3 * invert
 
-  LowerArm.z *= -2.14 * invert
-  LowerArm.y *= 2.14 * invert
-  LowerArm.x *= 2.14 * invert
+  LowerArm.z *= -1.2 * invert
+  LowerArm.y *= 1.2 * invert
+  LowerArm.x *= 1.2 * invert
 
   // Clamp values to human limits
   UpperArm.x = clamp(UpperArm.x, -0.5, PI)
 
   // Relaxed LowerArm.x clamp to allow more twist
-  LowerArm.x = clamp(LowerArm.x, -1.3, 1.3)
+  LowerArm.x = clamp(LowerArm.x, -0.8, 0.8)
 
   Hand.y = clamp(Hand.z * 2, -0.6, 0.6) // side to side
   Hand.z = Hand.z * -2.3 * invert // up down

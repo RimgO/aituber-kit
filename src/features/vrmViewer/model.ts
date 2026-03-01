@@ -23,6 +23,7 @@ export class Model {
 
   private _lookAtTargetParent: THREE.Object3D
   private _lipSync?: LipSync
+  private _initialHipY: number = 1.0
 
   // For Debug Skeleton Overlay
   private _debugSkeletonGroup?: THREE.Group
@@ -52,6 +53,12 @@ export class Model {
     this.mixer = new THREE.AnimationMixer(vrm.scene)
 
     this.emoteController = new EmoteController(vrm, this._lookAtTargetParent)
+
+    // Store original hip height for dynamic origin offset mapping
+    const hipsNode = vrm.humanoid?.getNormalizedBoneNode('hips')
+    if (hipsNode) {
+      this._initialHipY = hipsNode.getWorldPosition(new THREE.Vector3()).y
+    }
   }
 
   public unLoadVrm() {
@@ -130,7 +137,7 @@ export class Model {
       if (hips) {
         const targetPos = new THREE.Vector3(
           -riggedPose.Hips.worldPosition.x,
-          riggedPose.Hips.worldPosition.y + 1.0,
+          riggedPose.Hips.worldPosition.y + this._initialHipY,
           -riggedPose.Hips.worldPosition.z
         )
 
