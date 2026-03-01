@@ -13,6 +13,7 @@ let initializationPromise: Promise<void> | null = null
 export class MotionCaptureManager {
   private isRunning: boolean = false
   private onResultsCallback: ((results: Results) => void) | null = null
+  private smoothedPose: any = {}
 
   constructor(onResults: (results: Results) => void) {
     this.onResultsCallback = onResults
@@ -55,6 +56,7 @@ export class MotionCaptureManager {
           refineFaceLandmarks: true,
           minDetectionConfidence: 0.5,
           minTrackingConfidence: 0.5,
+          selfieMode: true,
         })
 
         await holistic.initialize()
@@ -110,6 +112,7 @@ export class MotionCaptureManager {
         if (globalHolisticInstance) {
           globalHolisticInstance.reset()
         }
+        this.smoothedPose = {}
         return null
       }
     }
@@ -168,6 +171,25 @@ export class MotionCaptureManager {
             }
           }
 
+          // Constrain Shoulders (Clavicles) to prevent excessive shrugging and forward collapse
+          const constrainShoulder = (shoulder: any) => {
+            if (!shoulder) return shoulder
+
+            // Limit Z (shrug) - less upward shrug allowed
+            shoulder.z = Math.max(-0.1, Math.min(0.2, shoulder.z))
+
+            // Limit Y (forward/backward) - prevent chest from collapsing inward
+            shoulder.y = Math.max(-0.15, Math.min(0.15, shoulder.y))
+
+            // Limit X (twist)
+            shoulder.x = Math.max(-0.1, Math.min(0.1, shoulder.x))
+
+            return shoulder
+          }
+
+          poseRig.RightShoulder = constrainShoulder(poseRig.RightShoulder)
+          poseRig.LeftShoulder = constrainShoulder(poseRig.LeftShoulder)
+
           // Filter Rig based on settings
           if (!settings.enableHipsTracking) {
             delete poseRig.Hips
@@ -225,9 +247,9 @@ export class MotionCaptureManager {
     let rightHandRig: any = {}
     if (
       (settings.enableHandTracking || settings.enableFingerTracking) &&
-      results.leftHandLandmarks
+      results.rightHandLandmarks
     ) {
-      rightHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, 'Right')
+      rightHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, 'Right')
       // Fix palm facing slightly down: Lift wrist up and use Hand solver's wrist
       if (rightHandRig?.RightWrist) {
         rightHandRig.RightHand = rightHandRig.RightWrist
@@ -239,9 +261,9 @@ export class MotionCaptureManager {
     let leftHandRig: any = {}
     if (
       (settings.enableHandTracking || settings.enableFingerTracking) &&
-      results.rightHandLandmarks
+      results.leftHandLandmarks
     ) {
-      leftHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, 'Left')
+      leftHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, 'Left')
       // Fix palm facing slightly down: Lift wrist up and use Hand solver's wrist
       if (leftHandRig?.LeftWrist) {
         leftHandRig.LeftHand = leftHandRig.LeftWrist
@@ -303,6 +325,29 @@ export class MotionCaptureManager {
       }
     }
 
+    // --- Safe EMA Smoothing Filter ---
+    const alpha = 0.40 // Smoothing factor (0.0=frozen, 1.0=raw data)
+
+    // Smooth the values into the `riggedPose` directly without disrupting object structure
+    const applyEMA = (targetState: any, sourceStructure: any) => {
+      if (!sourceStructure) return
+      for (const key in sourceStructure) {
+        if (typeof sourceStructure[key] === 'number') {
+          if (targetState[key] === undefined || isNaN(targetState[key])) {
+            targetState[key] = sourceStructure[key]
+          } else {
+            targetState[key] = (1 - alpha) * targetState[key] + alpha * sourceStructure[key]
+          }
+          // overwrite the source structure with smoothed value!
+          sourceStructure[key] = targetState[key]
+        } else if (typeof sourceStructure[key] === 'object' && sourceStructure[key] !== null) {
+          if (!targetState[key]) targetState[key] = {}
+          applyEMA(targetState[key], sourceStructure[key])
+        }
+      }
+    }
+
+    applyEMA(this.smoothedPose, riggedPose)
     return riggedPose
   }
 }
