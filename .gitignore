@@ -63,6 +63,9 @@ public/scripts/*
 !/public/vrm/nikechan_v2.vrm
 !/public/vrm/nikechan_v2_outerwear.vrm
 
+# WebM files
+webm/*
+
 # Background files
 /public/backgrounds/*
 !/public/backgrounds/bg-c.png
