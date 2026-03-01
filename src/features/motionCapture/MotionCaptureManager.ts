@@ -30,7 +30,7 @@ export class MotionCaptureManager {
       console.log('Waiting for existing initialization...')
       await initializationPromise
       if (globalHolisticInstance) {
-        ; (globalHolisticInstance as Holistic).onResults(
+        ;(globalHolisticInstance as Holistic).onResults(
           this.handleResults.bind(this)
         )
       }
@@ -326,7 +326,7 @@ export class MotionCaptureManager {
     }
 
     // --- Safe EMA Smoothing Filter ---
-    const alpha = 0.40 // Smoothing factor (0.0=frozen, 1.0=raw data)
+    const alpha = 0.4 // Smoothing factor (0.0=frozen, 1.0=raw data)
 
     // Smooth the values into the `riggedPose` directly without disrupting object structure
     const applyEMA = (targetState: any, sourceStructure: any) => {
@@ -336,11 +336,15 @@ export class MotionCaptureManager {
           if (targetState[key] === undefined || isNaN(targetState[key])) {
             targetState[key] = sourceStructure[key]
           } else {
-            targetState[key] = (1 - alpha) * targetState[key] + alpha * sourceStructure[key]
+            targetState[key] =
+              (1 - alpha) * targetState[key] + alpha * sourceStructure[key]
           }
           // overwrite the source structure with smoothed value!
           sourceStructure[key] = targetState[key]
-        } else if (typeof sourceStructure[key] === 'object' && sourceStructure[key] !== null) {
+        } else if (
+          typeof sourceStructure[key] === 'object' &&
+          sourceStructure[key] !== null
+        ) {
           if (!targetState[key]) targetState[key] = {}
           applyEMA(targetState[key], sourceStructure[key])
         }

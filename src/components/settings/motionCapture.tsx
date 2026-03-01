@@ -115,7 +115,10 @@ const MotionCapture = () => {
         </div>
 
         <div className="mb-4">
-          <div className="mb-2 font-bold">{t('ShowDebugSkeleton') || 'デバッグスケルトン表示 (Debug Skeleton)'}</div>
+          <div className="mb-2 font-bold">
+            {t('ShowDebugSkeleton') ||
+              'デバッグスケルトン表示 (Debug Skeleton)'}
+          </div>
           <TextButton
             onClick={() =>
               settingsStore.setState({ showDebugSkeleton: !showDebugSkeleton })

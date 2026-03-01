@@ -65,12 +65,14 @@ export const MotionCapture = () => {
           viewer.model.animateFromPose(riggedPose)
 
           if ((results as any).poseWorldLandmarks || results.poseLandmarks) {
-            const worldLandmarks = (results as any).poseWorldLandmarks || results.poseLandmarks.map((l: any) => ({
-              x: l.x,
-              y: l.y,
-              z: 0,
-              visibility: l.visibility,
-            }))
+            const worldLandmarks =
+              (results as any).poseWorldLandmarks ||
+              results.poseLandmarks.map((l: any) => ({
+                x: l.x,
+                y: l.y,
+                z: 0,
+                visibility: l.visibility,
+              }))
             viewer.model.drawDebugSkeleton(worldLandmarks)
           } else {
             viewer.model.drawDebugSkeleton(null)
@@ -123,10 +125,11 @@ export const MotionCapture = () => {
       )}
 
       <div
-        className={`absolute bottom-5 right-5 w-64 h-48 bg-black rounded-lg border border-cyan-500/30 overflow-hidden shadow-2xl z-50 group transition-all duration-300 ${isMinimized
+        className={`absolute bottom-5 right-5 w-64 h-48 bg-black rounded-lg border border-cyan-500/30 overflow-hidden shadow-2xl z-50 group transition-all duration-300 ${
+          isMinimized
             ? 'opacity-0 pointer-events-none translate-y-4'
             : 'opacity-100'
-          }`}
+        }`}
       >
         <video
           ref={videoRef}
