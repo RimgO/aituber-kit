@@ -73,9 +73,9 @@ export const MotionCapture = () => {
                 z: 0,
                 visibility: l.visibility,
               }))
-            viewer.model.drawDebugSkeleton(worldLandmarks)
+            viewer.model.drawDebugSkeleton(worldLandmarks, riggedPose)
           } else {
-            viewer.model.drawDebugSkeleton(null)
+            viewer.model.drawDebugSkeleton(null, null)
           }
         }
       }

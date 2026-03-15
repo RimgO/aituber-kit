@@ -513,15 +513,18 @@ MediaPipe座標系:
   Y: 下向き正  (0~1, 画面上端=0)
   Z: 手前向き正 (奥行き, スケールはXに依存)
 
-VRM / three.js 座標系:
+VRM 0.0 / three.js 空間:
   X: 右向き正
   Y: 上向き正  ← Yが逆！
-  Z: 手前向き正
+  Z: 奥向き正 （MediaPipeから見ると逆だが、VRM自体がY軸180度回転して初期化されるためローカルではXとZが反転する）
+
+対応策として、MediaPipeの世界座標をVRMのアバターローカル座標に直接マッピングするため、X軸とY軸を反転させます。（Zは反転しません）
+```
 pythondef mediapipe_to_vrm_coords(landmark):
-    """MediaPipe → VRM座標変換"""
+    """MediaPipe → VRM 0.0 ローカル座標変換"""
     return np.array([
-         landmark.x - 0.5,   # 中心を0に
-        -(landmark.y - 0.5), # Y軸反転 ← 重要
-        -landmark.z          # Z軸反転（奥行き）
+        -(landmark.x - 0.5), # X軸反転 (VRM0.0の180度Y軸回転を相殺)
+        -(landmark.y - 0.5), # Y軸反転
+         landmark.z          # Z軸そのまま
     ])
 ```

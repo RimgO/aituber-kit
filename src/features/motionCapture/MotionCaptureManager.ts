@@ -1,9 +1,9 @@
 import { Holistic, Results } from '@mediapipe/holistic'
-// @ts-ignore
-import * as Kalidokit from 'kalidokit'
 import homeStore from '@/features/stores/home'
 import settingsStore from '@/features/stores/settings'
-import { solveArms } from './solveArms'
+import { solvePose } from './solvers/poseSolver'
+import { solveFace } from './solvers/faceSolver'
+import { solveHand } from './solvers/handSolver'
 
 // Singleton instance to prevent multiple WASM initializations
 let globalHolisticInstance: Holistic | null = null
@@ -14,6 +14,10 @@ export class MotionCaptureManager {
   private isRunning: boolean = false
   private onResultsCallback: ((results: Results) => void) | null = null
   private smoothedPose: any = {}
+  // Auto-calibration
+  private calibFrameCount = 0
+  private calibEyeMaxSum = 0
+  private calibEyeMax = 0.04
 
   constructor(onResults: (results: Results) => void) {
     this.onResultsCallback = onResults
@@ -118,16 +122,13 @@ export class MotionCaptureManager {
     }
 
     let poseRig: any = {}
-    let customArms: any = {}
     if (results.poseLandmarks && results.poseLandmarks.length >= 33) {
-      // Only solve pose if any body part tracking is enabled
       if (
         settings.enableUpperBodyTracking ||
         settings.enableHipsTracking ||
         settings.enableLegTracking
       ) {
         try {
-          // Fallback for 3D landmarks if missing to prevent Kalidokit crash
           const worldLandmarks =
             (results as any).poseWorldLandmarks ||
             results.poseLandmarks.map((l) => ({
@@ -137,63 +138,12 @@ export class MotionCaptureManager {
               visibility: l.visibility,
             }))
 
-          poseRig = Kalidokit.Pose.solve(
-            worldLandmarks,
-            results.poseLandmarks,
-            {
-              runtime: 'mediapipe',
-              video: videoElement,
-            }
-          )
-
-          // Overwrite arm rigs with custom solver for better upper/lower arm tracking
-          customArms = solveArms(worldLandmarks)
-
-          if (settings.enableUpperBodyTracking) {
-            poseRig.RightUpperArm = customArms.RightUpperArm
-            if (poseRig.RightLowerArm && customArms.RightLowerArm) {
-              poseRig.RightLowerArm = {
-                ...customArms.RightLowerArm,
-                x: poseRig.RightLowerArm.x,
-              }
-            } else {
-              poseRig.RightLowerArm = customArms.RightLowerArm
-            }
-
-            poseRig.LeftUpperArm = customArms.LeftUpperArm
-            if (poseRig.LeftLowerArm && customArms.LeftLowerArm) {
-              poseRig.LeftLowerArm = {
-                ...customArms.LeftLowerArm,
-                x: poseRig.LeftLowerArm.x,
-              }
-            } else {
-              poseRig.LeftLowerArm = customArms.LeftLowerArm
-            }
-          }
-
-          // Constrain Shoulders (Clavicles) to prevent excessive shrugging and forward collapse
-          const constrainShoulder = (shoulder: any) => {
-            if (!shoulder) return shoulder
-
-            // Limit Z (shrug) - less upward shrug allowed
-            shoulder.z = Math.max(-0.1, Math.min(0.2, shoulder.z))
-
-            // Limit Y (forward/backward) - prevent chest from collapsing inward
-            shoulder.y = Math.max(-0.15, Math.min(0.15, shoulder.y))
-
-            // Limit X (twist)
-            shoulder.x = Math.max(-0.1, Math.min(0.1, shoulder.x))
-
-            return shoulder
-          }
-
-          poseRig.RightShoulder = constrainShoulder(poseRig.RightShoulder)
-          poseRig.LeftShoulder = constrainShoulder(poseRig.LeftShoulder)
+          const solvedPose = solvePose(results.poseLandmarks, worldLandmarks)
+          if (solvedPose) poseRig = solvedPose
 
           // Filter Rig based on settings
           if (!settings.enableHipsTracking) {
             delete poseRig.Hips
-            delete poseRig.Root
           }
 
           if (!settings.enableUpperBodyTracking) {
@@ -203,12 +153,10 @@ export class MotionCaptureManager {
             delete poseRig.Neck
             delete poseRig.RightShoulder
             delete poseRig.LeftShoulder
-            delete poseRig.RightArm
-            delete poseRig.LeftArm
-            delete poseRig.RightForeArm
-            delete poseRig.LeftForeArm
-            delete poseRig.RightHand
-            delete poseRig.LeftHand
+            delete poseRig.RightUpperArm
+            delete poseRig.LeftUpperArm
+            delete poseRig.RightLowerArm
+            delete poseRig.LeftLowerArm
           }
 
           if (!settings.enableLegTracking) {
@@ -216,30 +164,49 @@ export class MotionCaptureManager {
             delete poseRig.LeftUpperLeg
             delete poseRig.RightLowerLeg
             delete poseRig.LeftLowerLeg
-            delete poseRig.RightFoot
-            delete poseRig.LeftFoot
-            delete poseRig.RightToes
-            delete poseRig.LeftToes
           }
         } catch (e) {
-          console.error('Kalidokit Pose solve error:', e)
+          console.error('Pose solve error:', e)
         }
       }
     }
 
     let faceRig: any = {}
     if (settings.enableFaceTracking && results.faceLandmarks) {
-      faceRig = Kalidokit.Face.solve(results.faceLandmarks, {
-        runtime: 'mediapipe',
-        video: videoElement,
-      })
+      // Auto-calibrate eye openness scale from first 30 frames
+      if (this.calibFrameCount < 30) {
+        // Estimate current eye openness for calibration (crude approximation)
+        const eyeLm = results.faceLandmarks
+        if (eyeLm) {
+          const upper386 = eyeLm[386]
+          const lower374 = eyeLm[374]
+          if (upper386 && lower374) {
+            const dist = Math.sqrt(
+              (upper386.x - lower374.x) ** 2 + (upper386.y - lower374.y) ** 2
+            )
+            this.calibEyeMaxSum += dist
+            this.calibFrameCount++
+            if (this.calibFrameCount === 30) {
+              this.calibEyeMax = (this.calibEyeMaxSum / 30) * 1.2
+              console.log(
+                '[MotionCapture] Calibrated eye max:',
+                this.calibEyeMax
+              )
+            }
+          }
+        }
+      }
 
-      // Mouth Open Detection
-      if (faceRig && faceRig.mouth) {
-        const isOpen = (faceRig.mouth.y || 0) > 0.1
+      const solvedFace = solveFace(
+        results,
+        this.calibFrameCount >= 30 ? this.calibEyeMax : undefined
+      )
+      if (solvedFace) {
+        faceRig = solvedFace
+
         const currentIsOpen = homeStore.getState().isMouthOpen
-        if (currentIsOpen !== isOpen) {
-          homeStore.setState({ isMouthOpen: isOpen })
+        if (currentIsOpen !== solvedFace.isMouthOpen) {
+          homeStore.setState({ isMouthOpen: solvedFace.isMouthOpen })
         }
       }
     }
@@ -249,13 +216,8 @@ export class MotionCaptureManager {
       (settings.enableHandTracking || settings.enableFingerTracking) &&
       results.rightHandLandmarks
     ) {
-      rightHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, 'Right')
-      // Fix palm facing slightly down: Lift wrist up and use Hand solver's wrist
-      if (rightHandRig?.RightWrist) {
-        rightHandRig.RightHand = rightHandRig.RightWrist
-        // Lift palm up
-        rightHandRig.RightHand.x += 0.4
-      }
+      const solvedHand = solveHand(results.rightHandLandmarks, 'Right')
+      if (solvedHand) rightHandRig = solvedHand
     }
 
     let leftHandRig: any = {}
@@ -263,13 +225,8 @@ export class MotionCaptureManager {
       (settings.enableHandTracking || settings.enableFingerTracking) &&
       results.leftHandLandmarks
     ) {
-      leftHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, 'Left')
-      // Fix palm facing slightly down: Lift wrist up and use Hand solver's wrist
-      if (leftHandRig?.LeftWrist) {
-        leftHandRig.LeftHand = leftHandRig.LeftWrist
-        // Lift palm up
-        leftHandRig.LeftHand.x += 0.4
-      }
+      const solvedHand = solveHand(results.leftHandLandmarks, 'Left')
+      if (solvedHand) leftHandRig = solvedHand
     }
 
     const riggedPose = {
@@ -277,15 +234,16 @@ export class MotionCaptureManager {
       ...(rightHandRig || {}),
       ...(leftHandRig || {}),
       Face: faceRig,
+      // Neck from face solver
+      Neck: faceRig?.neck ?? null,
     }
 
     // Gaze Detection Logic
     let headRotation = { x: 0, y: 0, z: 0 }
     let hasHeadData = false
 
-    const pose = poseRig as any
-    if (pose && pose.Head && pose.Head.rotation) {
-      headRotation = pose.Head.rotation
+    if (faceRig && faceRig.head) {
+      headRotation = { x: faceRig.head.x, y: faceRig.head.y, z: faceRig.head.z }
       hasHeadData = true
     } else {
       // Fallback: Raw landmarks from Pose
