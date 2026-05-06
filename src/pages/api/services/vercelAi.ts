@@ -59,6 +59,7 @@ export async function streamAiText({
   messages,
   temperature,
   maxTokens,
+  ollamaContextLength,
   options = {},
 }: {
   model: string
@@ -66,11 +67,15 @@ export async function streamAiText({
   messages: Message[]
   temperature: number
   maxTokens: number
+  ollamaContextLength?: number
   options?: any
 }) {
   try {
     const result = await streamText({
-      model: modelInstance(model, options),
+      model: modelInstance(model, {
+        ...options,
+        ...(ollamaContextLength ? { numCtx: ollamaContextLength } : {}),
+      }),
       messages: messages as CoreMessage[],
       temperature,
       maxTokens,
@@ -103,16 +108,20 @@ export async function generateAiText({
   messages,
   temperature,
   maxTokens,
+  ollamaContextLength,
 }: {
   model: string
   modelInstance: any
   messages: Message[]
   temperature: number
   maxTokens: number
+  ollamaContextLength?: number
 }) {
   try {
     const result = await generateText({
-      model: modelInstance(model),
+      model: modelInstance(model, {
+        ...(ollamaContextLength ? { numCtx: ollamaContextLength } : {}),
+      }),
       messages: messages as CoreMessage[],
       temperature,
       maxTokens,

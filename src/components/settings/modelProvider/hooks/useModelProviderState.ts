@@ -54,6 +54,7 @@ export const useModelProviderState = () => {
   const customApiIncludeMimeType = settingsStore(
     (s) => s.customApiIncludeMimeType
   )
+  const ollamaContextLength = settingsStore((s) => s.ollamaContextLength)
 
   const isMultiModalSupported = useMemo(
     () =>
@@ -108,6 +109,7 @@ export const useModelProviderState = () => {
     customApiStream,
     includeSystemMessagesInCustomApi,
     customApiIncludeMimeType,
+    ollamaContextLength,
     isMultiModalSupported,
   }
 }

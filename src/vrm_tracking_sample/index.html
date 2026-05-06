@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VRM Full-Body Tracker</title>
+
+  <!-- MediaPipe Holistic -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
+
+  <style>
+    :root {
+      --bg:      #0a0a0f;
+      --surface: #13131c;
+      --panel:   #1a1a28;
+      --border:  #2a2a40;
+      --accent:  #6c63ff;
+      --accent2: #ff6384;
+      --green:   #00e5a0;
+      --text:    #e8e8f0;
+      --muted:   #6b6b8a;
+      --font:    'JetBrains Mono', 'Courier New', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── トップバー ─────────────────────────── */
+    #topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #topbar .logo {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    #topbar .logo span { color: var(--accent2); }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+    .status-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.warn   { background: #ffaa00; }
+
+    #status-text {
+      color: var(--muted);
+      font-size: 11px;
+      flex: 1;
+    }
+
+    .spacer { flex: 1; }
+
+    /* ── メインレイアウト ───────────────────── */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── 左パネル (コントロール) ───────────── */
+    #panel-left {
+      width: 240px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .panel-section {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-section h3 {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    /* ── ボタン ─────────────────────────────── */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-bottom: 6px;
+    }
+    .btn:hover  { border-color: var(--accent); color: var(--accent); }
+    .btn.active { border-color: var(--green); color: var(--green); background: rgba(0,229,160,0.08); }
+    .btn.danger { border-color: var(--accent2); color: var(--accent2); }
+    .btn.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .btn.primary:hover { opacity: 0.85; }
+
+    /* ── ファイルドロップゾーン ────────────── */
+    .drop-zone {
+      border: 1.5px dashed var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 8px;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(108,99,255,0.06);
+    }
+    .drop-zone .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+
+    input[type="file"] { display: none; }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      margin: 4px 0 8px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+
+    /* ── メタ情報 ───────────────────────────── */
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      font-size: 11px;
+    }
+    .meta-row .key   { color: var(--muted); }
+    .meta-row .val   { color: var(--text); }
+
+    /* ── 中央 (3Dビューポート) ─────────────── */
+    #viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #three-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* ── プレビュー映像 (ピクチャーインピクチャー) ─ */
+    #pip-video {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      width: 220px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #000;
+      opacity: 0.85;
+      z-index: 10;
+      display: none;
+    }
+    #pip-overlay {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      width: 220px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      z-index: 11;
+      display: none;
+      pointer-events: none;
+    }
+
+    /* ── 右パネル (数値モニター) ───────────── */
+    #panel-right {
+      width: 200px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .bone-monitor {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .bone-monitor h4 {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .bone-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      padding: 1.5px 0;
+    }
+    .bone-row .bname { color: var(--muted); }
+    .bone-row .bval  { color: var(--text); font-variant-numeric: tabular-nums; }
+
+    /* ── オーバーレイメッセージ ────────────── */
+    #overlay-msg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: rgba(10,10,15,0.85);
+      z-index: 20;
+      text-align: center;
+    }
+    #overlay-msg .big { font-size: 32px; }
+    #overlay-msg p    { color: var(--muted); font-size: 12px; }
+
+    /* ── BVH 録画インジケーター ─────────────── */
+    #rec-indicator {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,99,132,0.15);
+      border: 1px solid var(--accent2);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: var(--accent2);
+      z-index: 15;
+    }
+    #rec-indicator .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent2);
+      animation: blink 1s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+    #loading-bar {
+      position: absolute;
+      bottom: 0; left: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+      transition: width 0.3s;
+      z-index: 30;
+    }
+  </style>
+</head>
+<body>
+
+<!-- トップバー -->
+<div id="topbar">
+  <div class="logo">VRM<span>Tracker</span></div>
+  <div class="status-dot" id="dot-mediapipe"></div>
+  <div id="status-text">MediaPipe 初期化中...</div>
+  <div class="spacer"></div>
+  <div class="meta-row" style="gap:16px">
+    <span class="key">FPS</span>
+    <span class="val" id="fps-counter">--</span>
+    <span class="key">遅延</span>
+    <span class="val" id="latency">-- ms</span>
+  </div>
+</div>
+
+<!-- メインエリア -->
+<div id="main">
+
+  <!-- 左パネル -->
+  <div id="panel-left">
+
+    <!-- VRMロード -->
+    <div class="panel-section">
+      <h3>VRM モデル</h3>
+      <div class="drop-zone" id="vrm-drop">
+        <span class="icon">🧍</span>
+        VRMファイルを<br>ドロップ / クリック
+      </div>
+      <input type="file" id="vrm-file" accept=".vrm">
+    </div>
+
+    <!-- 入力ソース -->
+    <div class="panel-section">
+      <h3>入力ソース</h3>
+      <button class="btn" id="btn-webcam">📷 Webカメラ</button>
+      <div class="drop-zone" id="video-drop">
+        <span class="icon">🎬</span>
+        動画ファイルを<br>ドロップ / クリック
+      </div>
+      <input type="file" id="video-file" accept="video/*">
+    </div>
+
+    <!-- トラッキング設定 -->
+    <div class="panel-section">
+      <h3>トラッキング設定</h3>
+
+      <div class="slider-label">
+        <span>スムージング</span>
+        <span id="smooth-val">0.35</span>
+      </div>
+      <input type="range" id="smooth-slider" min="0" max="90" value="35">
+
+      <div class="slider-label">
+        <span>モデル精度</span>
+        <span id="model-val">1</span>
+      </div>
+      <input type="range" id="model-slider" min="0" max="2" value="1" step="1">
+
+      <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--muted)">
+        <input type="checkbox" id="chk-hands" checked> 手指トラッキング
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--muted)">
+        <input type="checkbox" id="chk-face" checked> 顔・表情
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--muted)">
+        <input type="checkbox" id="chk-mirror" checked> 左右反転 (鏡モード)
+      </label>
+    </div>
+
+    <!-- BVH録画 -->
+    <div class="panel-section">
+      <h3>BVH エクスポート</h3>
+      <button class="btn" id="btn-rec">⏺ 録画開始</button>
+      <button class="btn danger" id="btn-stop-rec" disabled>⏹ 停止</button>
+      <button class="btn" id="btn-download" disabled>💾 BVH ダウンロード</button>
+      <div class="meta-row" style="margin-top:6px">
+        <span class="key">フレーム数</span>
+        <span class="val" id="bvh-frames">0</span>
+      </div>
+      <div class="meta-row">
+        <span class="key">録画時間</span>
+        <span class="val" id="bvh-duration">0.0s</span>
+      </div>
+    </div>
+
+    <!-- カメラ操作ヒント -->
+    <div class="panel-section">
+      <h3>ビューポート操作</h3>
+      <div class="meta-row"><span class="key">左ドラッグ</span><span class="val">回転</span></div>
+      <div class="meta-row"><span class="key">右ドラッグ</span><span class="val">移動</span></div>
+      <div class="meta-row"><span class="key">ホイール</span><span class="val">ズーム</span></div>
+    </div>
+  </div>
+
+  <!-- 3Dビューポート -->
+  <div id="viewport">
+    <canvas id="three-canvas"></canvas>
+    <video id="pip-video" autoplay muted playsinline></video>
+    <canvas id="pip-overlay"></canvas>
+
+    <!-- オーバーレイ -->
+    <div id="overlay-msg">
+      <div class="big">🧍</div>
+      <div style="color:var(--text);font-size:16px">VRM Full-Body Tracker</div>
+      <p>① 左パネルからVRMファイルを読み込む<br>② 動画 または Webカメラを選択<br>③ トラッキング開始</p>
+    </div>
+
+    <!-- BVH録画インジケーター -->
+    <div id="rec-indicator">
+      <div class="dot"></div>
+      REC <span id="rec-time">0:00</span>
+    </div>
+
+    <div id="loading-bar"></div>
+  </div>
+
+  <!-- 右パネル: ボーン数値モニター -->
+  <div id="panel-right">
+    <div class="bone-monitor">
+      <h4>身体ボーン</h4>
+      <div id="body-monitor"></div>
+    </div>
+    <div class="bone-monitor">
+      <h4>表情</h4>
+      <div id="face-monitor"></div>
+    </div>
+    <div class="bone-monitor">
+      <h4>左脚</h4>
+      <div id="leg-l-monitor"></div>
+    </div>
+    <div class="bone-monitor">
+      <h4>右脚</h4>
+      <div id="leg-r-monitor"></div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     JavaScript: Three.js + VRM + MediaPipe + BVH
+     ========================================================= -->
+<script type="module">
+// ── CDN imports ──────────────────────────────────────────────
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader }    from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
+import { VRMLoaderPlugin, VRMUtils } from 'https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2/lib/three-vrm.module.js';
+
+// ── ユーティリティ: ベクトル・クォータニオン ─────────────────
+const v3 = {
+  sub: (a,b) => ({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z}),
+  add: (a,b) => ({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z}),
+  scale:(v,s)=> ({x:v.x*s,y:v.y*s,z:v.z*s}),
+  lerp: (a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t}),
+  dot:  (a,b) => a.x*b.x+a.y*b.y+a.z*b.z,
+  cross:(a,b) => ({x:a.y*b.z-a.z*b.y,y:a.z*b.x-a.x*b.z,z:a.x*b.y-a.y*b.x}),
+  len:  (v)   => Math.sqrt(v.x*v.x+v.y*v.y+v.z*v.z),
+  norm: (v)   => { const l=Math.sqrt(v.x*v.x+v.y*v.y+v.z*v.z)||1e-9; return {x:v.x/l,y:v.y/l,z:v.z/l}; },
+  mp:   (lm)  => ({x:lm.x-0.5, y:-(lm.y-0.5), z:-(lm.z??0)}),
+  get:  (lms,i) => lms&&lms[i] ? {x:lms[i].x-0.5,y:-(lms[i].y-0.5),z:-(lms[i].z??0)} : {x:0,y:0,z:0},
+};
+
+const qt = {
+  id: ()=>[0,0,0,1],
+  fromVec:(f,t)=>{
+    f=v3.norm(f); t=v3.norm(t);
+    const d=v3.dot(f,t);
+    if(d>0.9999) return [0,0,0,1];
+    if(d<-0.9999){
+      let p={x:1,y:0,z:0};
+      if(Math.abs(f.x)>0.9) p={x:0,y:1,z:0};
+      const ax=v3.norm(v3.cross(f,p));
+      return [ax.x,ax.y,ax.z,0];
+    }
+    const c=v3.cross(f,t); const w=1+d;
+    const q=[c.x,c.y,c.z,w]; const l=Math.sqrt(q.reduce((s,v)=>s+v*v,0));
+    return q.map(v=>v/l);
+  },
+  fromAA:(ax,a)=>{ const s=Math.sin(a/2); const n=v3.norm(ax); return [n.x*s,n.y*s,n.z*s,Math.cos(a/2)]; },
+  fromEuler:(x,y,z)=>{
+    const cx=Math.cos(x/2),sx=Math.sin(x/2),cy=Math.cos(y/2),sy=Math.sin(y/2),cz=Math.cos(z/2),sz=Math.sin(z/2);
+    return [sx*cy*cz+cx*sy*sz, cx*sy*cz-sx*cy*sz, cx*cy*sz+sx*sy*cz, cx*cy*cz-sx*sy*sz];
+  },
+  toEuler:(q)=>{
+    const [x,y,z,w]=q;
+    return {
+      x:Math.atan2(2*(w*x+y*z),1-2*(x*x+y*y)),
+      y:Math.asin(Math.max(-1,Math.min(1,2*(w*y-z*x)))),
+      z:Math.atan2(2*(w*z+x*y),1-2*(y*y+z*z))
+    };
+  },
+  norm:(q)=>{ const l=Math.sqrt(q.reduce((s,v)=>s+v*v,0))||1e-9; return q.map(v=>v/l); },
+  mul:(a,b)=>[
+    a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],
+    a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],
+    a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],
+    a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2],
+  ],
+};
+
+function bendAngle(p,j,c){
+  const ba=v3.norm(v3.sub(p,j)); const bc=v3.norm(v3.sub(c,j));
+  const d=Math.max(-1,Math.min(1,v3.dot(ba,bc)));
+  return {angle:Math.acos(d), axis:v3.norm(v3.cross(ba,bc))};
+}
+
+// OneEuro フィルター
+class OEF{
+  constructor(mc=1,b=0.007,dc=1){this.mc=mc;this.b=b;this.dc=dc;this.xp=null;this.dp=0;this.tp=null;}
+  alpha(dt,c){const tau=1/(2*Math.PI*c);return 1/(1+tau/dt);}
+  filter(x,t){
+    if(this.xp===null){this.xp=x;this.tp=t;return x;}
+    const dt=Math.max(t-this.tp,1e-9);
+    const dx=(x-this.xp)/dt;
+    const ad=this.alpha(dt,this.dc);
+    const dh=ad*dx+(1-ad)*this.dp;
+    const c=this.mc+this.b*Math.abs(dh);
+    const a=this.alpha(dt,c);
+    const xh=a*x+(1-a)*this.xp;
+    this.xp=xh;this.dp=dh;this.tp=t;return xh;
+  }
+  reset(){this.xp=null;this.dp=0;this.tp=null;}
+}
+
+// QuatSmoother
+class QS{
+  constructor(f=0.4){this.f=f;this.p=null;}
+  filter(q){
+    if(!this.p){this.p=[...q];return q;}
+    const d=q[0]*this.p[0]+q[1]*this.p[1]+q[2]*this.p[2]+q[3]*this.p[3];
+    const s=d<0?-1:1; const t=1-this.f;
+    const r=[this.p[0]+t*(s*q[0]-this.p[0]),this.p[1]+t*(s*q[1]-this.p[1]),
+             this.p[2]+t*(s*q[2]-this.p[2]),this.p[3]+t*(s*q[3]-this.p[3])];
+    const l=Math.sqrt(r.reduce((a,v)=>a+v*v,0));
+    this.p=r.map(v=>v/l);return this.p;
+  }
+  reset(){this.p=null;}
+}
+
+// ── MediaPipe ランドマーク番号 ──────────────────────────────
+const PL = {
+  NOSE:0, L_EYE:2, R_EYE:5,
+  LS:11, RS:12, LE:13, RE:14, LW:15, RW:16,
+  LP:17, RP:18, LI:19, RI:20,
+  LH:23, RH:24, LK:25, RK:26,
+  LA:27, RA:28, LHE:29, RHE:30,
+  LFI:31, RFI:32,
+};
+
+// ── BVH 定義 ────────────────────────────────────────────────
+const BVH_HIER = `HIERARCHY
+ROOT hips
+{
+  OFFSET 0.00 0.00 0.00
+  CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation
+  JOINT spine
+  {
+    OFFSET 0.00 10.00 0.00
+    CHANNELS 3 Zrotation Xrotation Yrotation
+    JOINT chest
+    {
+      OFFSET 0.00 10.00 0.00
+      CHANNELS 3 Zrotation Xrotation Yrotation
+      JOINT upperChest
+      {
+        OFFSET 0.00 10.00 0.00
+        CHANNELS 3 Zrotation Xrotation Yrotation
+        JOINT neck
+        {
+          OFFSET 0.00 10.00 0.00
+          CHANNELS 3 Zrotation Xrotation Yrotation
+          JOINT head
+          {
+            OFFSET 0.00 7.00 0.00
+            CHANNELS 3 Zrotation Xrotation Yrotation
+            End Site { OFFSET 0.00 7.00 0.00 }
+          }
+        }
+        JOINT leftShoulder
+        {
+          OFFSET 5.00 8.00 0.00
+          CHANNELS 3 Zrotation Xrotation Yrotation
+          JOINT leftUpperArm
+          {
+            OFFSET 5.00 0.00 0.00
+            CHANNELS 3 Zrotation Xrotation Yrotation
+            JOINT leftLowerArm
+            {
+              OFFSET 25.00 0.00 0.00
+              CHANNELS 3 Zrotation Xrotation Yrotation
+              JOINT leftHand
+              {
+                OFFSET 25.00 0.00 0.00
+                CHANNELS 3 Zrotation Xrotation Yrotation
+                End Site { OFFSET 10.00 0.00 0.00 }
+              }
+            }
+          }
+        }
+        JOINT rightShoulder
+        {
+          OFFSET -5.00 8.00 0.00
+          CHANNELS 3 Zrotation Xrotation Yrotation
+          JOINT rightUpperArm
+          {
+            OFFSET -5.00 0.00 0.00
+            CHANNELS 3 Zrotation Xrotation Yrotation
+            JOINT rightLowerArm
+            {
+              OFFSET -25.00 0.00 0.00
+              CHANNELS 3 Zrotation Xrotation Yrotation
+              JOINT rightHand
+              {
+                OFFSET -25.00 0.00 0.00
+                CHANNELS 3 Zrotation Xrotation Yrotation
+                End Site { OFFSET -10.00 0.00 0.00 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  JOINT leftUpperLeg
+  {
+    OFFSET 8.00 0.00 0.00
+    CHANNELS 3 Zrotation Xrotation Yrotation
+    JOINT leftLowerLeg
+    {
+      OFFSET 0.00 -40.00 0.00
+      CHANNELS 3 Zrotation Xrotation Yrotation
+      JOINT leftFoot
+      {
+        OFFSET 0.00 -38.00 0.00
+        CHANNELS 3 Zrotation Xrotation Yrotation
+        JOINT leftToes
+        {
+          OFFSET 0.00 -5.00 8.00
+          CHANNELS 3 Zrotation Xrotation Yrotation
+          End Site { OFFSET 0.00 0.00 6.00 }
+        }
+      }
+    }
+  }
+  JOINT rightUpperLeg
+  {
+    OFFSET -8.00 0.00 0.00
+    CHANNELS 3 Zrotation Xrotation Yrotation
+    JOINT rightLowerLeg
+    {
+      OFFSET 0.00 -40.00 0.00
+      CHANNELS 3 Zrotation Xrotation Yrotation
+      JOINT rightFoot
+      {
+        OFFSET 0.00 -38.00 0.00
+        CHANNELS 3 Zrotation Xrotation Yrotation
+        JOINT rightToes
+        {
+          OFFSET 0.00 -5.00 8.00
+          CHANNELS 3 Zrotation Xrotation Yrotation
+          End Site { OFFSET 0.00 0.00 6.00 }
+        }
+      }
+    }
+  }
+}`;
+
+const BVH_BONE_ORDER = [
+  'hips','spine','chest','upperChest','neck','head',
+  'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
+  'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
+  'leftUpperLeg','leftLowerLeg','leftFoot','leftToes',
+  'rightUpperLeg','rightLowerLeg','rightFoot','rightToes',
+];
+
+const R2D = 180/Math.PI;
+function q2bvh(q){
+  const e=qt.toEuler(q);
+  return `${(e.z*R2D).toFixed(4)} ${(e.x*R2D).toFixed(4)} ${(e.y*R2D).toFixed(4)}`;
+}
+
+// ── グローバル状態 ──────────────────────────────────────────
+let vrm = null;
+let holisticReady = false;
+let tracking = false;
+let frameCount = 0, lastFPSTime = performance.now(), fps = 0;
+let bvhFrames = [], bvhRecording = false, recStartTime = 0;
+let smoothFactor = 0.35;
+let modelComplexity = 1;
+let useHands = true, useFace = true, mirror = true;
+
+// スムーザー
+const smoothers = {};
+function getSmoother(name){ if(!smoothers[name]) smoothers[name]=new QS(smoothFactor); return smoothers[name]; }
+const blinkLF = new OEF(2,0.1); const blinkRF = new OEF(2,0.1);
+const aaF = new OEF(3,0.2); const joyF = new OEF(2,0.05);
+function resetSmoothers(){ for(const s of Object.values(smoothers)) s.reset(); }
+
+// ── THREE.js セットアップ ───────────────────────────────────
+const canvas   = document.getElementById('three-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x111118);
+scene.fog = new THREE.FogExp2(0x111118, 0.025);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+camera.position.set(0, 1.2, 2.5);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1.0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.1;
+controls.update();
+
+// ライティング
+const ambLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dirLight.position.set(1, 2, 1);
+dirLight.castShadow = true;
+scene.add(dirLight);
+const fillLight = new THREE.DirectionalLight(0x8888ff, 0.3);
+fillLight.position.set(-1, 0, -1);
+scene.add(fillLight);
+
+// グリッドフロア
+const grid = new THREE.GridHelper(10, 20, 0x2a2a40, 0x1e1e2e);
+scene.add(grid);
+
+// リサイズ
+function resize(){
+  const vp = document.getElementById('viewport');
+  const w = vp.clientWidth, h = vp.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── VRM ロード ──────────────────────────────────────────────
+const gltfLoader = new GLTFLoader();
+gltfLoader.register(parser => new VRMLoaderPlugin(parser));
+
+async function loadVRM(url, name='') {
+  document.getElementById('loading-bar').style.width='30%';
+  setStatus(`VRM 読み込み中: ${name}...`, 'warn');
+  try {
+    if(vrm){ scene.remove(vrm.scene); vrm.dispose?.(); vrm=null; }
+    const gltf = await gltfLoader.loadAsync(url, xhr=>{
+      document.getElementById('loading-bar').style.width = (30 + xhr.loaded/xhr.total*60)+'%';
+    });
+    vrm = gltf.userData.vrm;
+    VRMUtils.removeUnnecessaryJoints(vrm.scene);
+    vrm.scene.rotation.y = Math.PI; // 正面向き
+    scene.add(vrm.scene);
+    document.getElementById('overlay-msg').style.display='none';
+    document.getElementById('loading-bar').style.width='100%';
+    setTimeout(()=>document.getElementById('loading-bar').style.width='0%',500);
+    setStatus(`✅ VRM 読み込み完了: ${name}`, 'active');
+  } catch(e) {
+    console.error(e);
+    setStatus('❌ VRM 読み込み失敗: '+e.message, '');
+    document.getElementById('loading-bar').style.width='0%';
+  }
+}
+
+// ── MediaPipe Holistic ──────────────────────────────────────
+let holistic;
+function initHolistic(){
+  holistic = new Holistic({locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${f}`});
+  holistic.setOptions({
+    modelComplexity,
+    smoothLandmarks: true,
+    enableSegmentation: false,
+    smoothSegmentation: false,
+    refineFaceLandmarks: true,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+  });
+  holistic.onResults(onHolisticResults);
+  holistic.initialize().then(()=>{
+    holisticReady = true;
+    setStatus('✅ MediaPipe 準備完了 — ソースを選択', 'active');
+  });
+}
+initHolistic();
+
+// ── トラッキング処理 ────────────────────────────────────────
+function onHolisticResults(results){
+  const t0 = performance.now();
+  const pose = results.poseLandmarks;
+  const face = results.faceLandmarks;
+  const lh   = mirror ? results.rightHandLandmarks : results.leftHandLandmarks;
+  const rh   = mirror ? results.leftHandLandmarks  : results.rightHandLandmarks;
+
+  if(!pose || !vrm) return;
+
+  const now = performance.now()/1000;
+  const bones = {};
+
+  // ミラー: PoseランドマークのX座標を反転
+  const lms = mirror
+    ? pose.map(l=>({x:1-l.x, y:l.y, z:l.z}))
+    : pose;
+
+  // ── 腰 ──
+  const lHip = v3.get(lms, PL.LH); const rHip = v3.get(lms, PL.RH);
+  const lSho = v3.get(lms, PL.LS); const rSho = v3.get(lms, PL.RS);
+  const hipMid = v3.lerp(lHip, rHip, 0.5);
+  const shoMid = v3.lerp(lSho, rSho, 0.5);
+  const hipRight = v3.norm(v3.sub(rHip, lHip));
+  const up = {x:0,y:1,z:0};
+  const hipFwd = v3.norm(v3.cross(hipRight, up));
+  const yaw = Math.atan2(hipFwd.x, hipFwd.z);
+  const roll = Math.atan2(rHip.y - lHip.y, v3.len(v3.sub(rHip,lHip))) * 0.5;
+  bones.hips = sm('hips', qt.fromEuler(0, yaw, roll));
+
+  // ── 脊椎 ──
+  const spineVec = v3.sub(shoMid, hipMid);
+  const spineQ = qt.fromVec({x:0,y:1,z:0}, spineVec);
+  const distr = (q,f) => { const e=qt.toEuler(q); return qt.fromEuler(e.x*f,e.y*f,e.z*f); };
+  bones.spine      = sm('spine',      distr(spineQ, 0.35));
+  bones.chest      = sm('chest',      distr(spineQ, 0.30));
+  bones.upperChest = sm('upperChest', distr(spineQ, 0.20));
+
+  // ── 腕チェーン (共通関数) ──
+  function armChain(side){
+    const isL = side==='left';
+    const SH = v3.get(lms, isL?PL.LS:PL.RS);
+    const EL = v3.get(lms, isL?PL.LE:PL.RE);
+    const WR = v3.get(lms, isL?PL.LW:PL.RW);
+    const IX = v3.get(lms, isL?PL.LI:PL.RI);
+    const PK = v3.get(lms, isL?PL.LP:PL.RP);
+
+    bones[`${side}Shoulder`]  = sm(`${side}Shoulder`, qt.id());
+
+    const uaDir = v3.sub(EL, SH);
+    const uaRest = isL ? {x:-1,y:0,z:0} : {x:1,y:0,z:0};
+    bones[`${side}UpperArm`] = sm(`${side}UpperArm`, qt.fromVec(uaRest, uaDir));
+
+    const {angle:eA} = bendAngle(SH, EL, WR);
+    const laQ = qt.fromAA({x:0,y:0,z:isL?1:-1}, Math.max(0, Math.PI - eA));
+    bones[`${side}LowerArm`] = sm(`${side}LowerArm`, laQ);
+
+    if(v3.len(IX)>0.01){
+      const hR = isL ? v3.sub(PK,IX) : v3.sub(IX,PK);
+      const hF = v3.sub(WR, v3.lerp(IX,PK,0.5));
+      const hU = v3.norm(v3.cross(hR,hF));
+      const hRest = isL?{x:-1,y:0,z:0}:{x:1,y:0,z:0};
+      bones[`${side}Hand`] = sm(`${side}Hand`, qt.fromVec(hRest, hU));
+    } else { bones[`${side}Hand`] = qt.id(); }
+  }
+  armChain('left'); armChain('right');
+
+  // ── 脚チェーン (共通関数) ──
+  function legChain(side){
+    const isL = side==='left';
+    const HP = v3.get(lms, isL?PL.LH:PL.RH);
+    const KN = v3.get(lms, isL?PL.LK:PL.RK);
+    const AN = v3.get(lms, isL?PL.LA:PL.RA);
+    const HE = v3.get(lms, isL?PL.LHE:PL.RHE);
+    const FI = v3.get(lms, isL?PL.LFI:PL.RFI);
+
+    // 大腿: 腰→膝
+    const ulDir = v3.sub(KN, HP);
+    const ulRest = {x:0,y:-1,z:0};
+    bones[`${side}UpperLeg`] = sm(`${side}UpperLeg`, qt.fromVec(ulRest, ulDir));
+
+    // 下腿: 膝の曲げ
+    const {angle:kA} = bendAngle(HP, KN, AN);
+    const bentK = Math.max(0, Math.PI - kA);
+    bones[`${side}LowerLeg`] = sm(`${side}LowerLeg`, qt.fromAA({x:1,y:0,z:0}, bentK));
+
+    // 足首: 踵→つま先
+    if(v3.len(HE)>0.01 && v3.len(FI)>0.01){
+      const footDir = v3.sub(FI, HE);
+      const footQ   = qt.fromVec({x:0,y:0,z:1}, footDir);
+      const {angle:aA} = bendAngle(KN, AN, FI);
+      const ankleQ  = qt.fromAA({x:1,y:0,z:0}, (Math.PI - aA)*0.3);
+      bones[`${side}Foot`] = sm(`${side}Foot`, qt.mul(footQ, ankleQ));
+
+      const toesDir = v3.sub(FI, AN);
+      bones[`${side}Toes`] = sm(`${side}Toes`, qt.fromVec({x:0,y:0,z:1}, toesDir));
+    } else {
+      bones[`${side}Foot`] = qt.id();
+      bones[`${side}Toes`] = qt.id();
+    }
+  }
+  legChain('left'); legChain('right');
+
+  // ── 顔・首 ──
+  if(useFace && face && face.length > 10){
+    const NT = v3.mp(face[4]);
+    const LC = v3.mp(face[234]); const RC = v3.mp(face[454]);
+    const fc  = v3.lerp(LC,RC,0.5);
+    const fw  = v3.len(v3.sub(RC,LC));
+    const yawH   = -((NT.x-fc.x)/(fw*0.5))*0.8;
+    const pitchH = -((NT.y-fc.y)/(fw*0.5))*0.6;
+    const rollH  =  ((LC.y-RC.y)/fw)*0.5;
+    bones.head = sm('head', qt.fromEuler(pitchH, yawH, rollH));
+    bones.neck = sm('neck', qt.fromEuler(pitchH*0.4, yawH*0.4, rollH*0.3));
+
+    // 目開閉
+    function eyeOpen(ui,li){
+      const u=ui.reduce((s,i)=>v3.add(s,v3.mp(face[i])),{x:0,y:0,z:0});
+      const l=li.reduce((s,i)=>v3.add(s,v3.mp(face[i])),{x:0,y:0,z:0});
+      const un=v3.scale(u,1/ui.length), ln=v3.scale(l,1/li.length);
+      return v3.len(v3.sub(un,ln));
+    }
+    const lo=eyeOpen([386,387,388],[374,380,381]);
+    const ro=eyeOpen([159,160,161],[145,153,154]);
+    const EM=0.04,EL=0.005;
+    const blL=1-Math.max(0,Math.min(1,(lo-EL)/EM));
+    const blR=1-Math.max(0,Math.min(1,(ro-EL)/EM));
+
+    // 口
+    const mT=v3.mp(face[13]),mB=v3.mp(face[14]);
+    const mL=v3.mp(face[61]),mR=v3.mp(face[291]);
+    const mOpen=v3.len(v3.sub(mT,mB));
+    const mMidY=(mT.y+mB.y)/2, cMidY=(mL.y+mR.y)/2;
+
+    if(vrm.expressionManager){
+      const em = vrm.expressionManager;
+      try{ em.setValue('blinkLeft',  blinkLF.filter(blL, now)); }catch(e){}
+      try{ em.setValue('blinkRight', blinkRF.filter(blR, now)); }catch(e){}
+      try{ em.setValue('aa',         aaF.filter(Math.min(1,mOpen/0.07), now)); }catch(e){}
+      try{ em.setValue('happy',      joyF.filter(Math.max(0,Math.min(1,(mMidY-cMidY)*25)), now)); }catch(e){}
+    }
+  } else {
+    bones.neck = qt.id();
+    bones.head = qt.id();
+  }
+
+  // ── 手指 ──
+  if(useHands){
+    if(lh) fingerCalc(lh,'left', bones);
+    if(rh) fingerCalc(rh,'right', bones);
+  }
+
+  // ── VRM に適用 ──
+  const humanoid = vrm.humanoid;
+  const Q = new THREE.Quaternion();
+  for(const [name, q] of Object.entries(bones)){
+    try{
+      const node = humanoid.getRawBoneNode(name);
+      if(node) node.quaternion.set(q[0],q[1],q[2],q[3]);
+    }catch(e){}
+  }
+
+  // ── BVH 録画 ──
+  if(bvhRecording){
+    const row=[];
+    for(let i=0;i<BVH_BONE_ORDER.length;i++){
+      const bn=BVH_BONE_ORDER[i]; const q=bones[bn]??[0,0,0,1];
+      if(i===0) row.push(`0.0000 90.0000 0.0000 ${q2bvh(q)}`);
+      else row.push(q2bvh(q));
+    }
+    bvhFrames.push(row.join(' '));
+    document.getElementById('bvh-frames').textContent = bvhFrames.length;
+    document.getElementById('bvh-duration').textContent = (bvhFrames.length/30).toFixed(1)+'s';
+  }
+
+  // ── モニター更新 (30フレームに1回) ──
+  frameCount++;
+  if(frameCount%10===0) updateMonitor(bones);
+
+  // FPS
+  const now2=performance.now();
+  fps = Math.round(1000/(now2-lastFPSTime));
+  lastFPSTime=now2;
+  document.getElementById('fps-counter').textContent=fps;
+  document.getElementById('latency').textContent=Math.round(performance.now()-t0)+' ms';
+}
+
+// 指トラッキング
+function fingerCalc(hand, side, bones){
+  const isL = side==='left';
+  const lm = hand;
+  const FINGERS=[
+    {name:`${side}Thumb`,  ids:[1,2,3,4],  segs:['Metacarpal','Proximal','Distal']},
+    {name:`${side}Index`,  ids:[5,6,7,8],  segs:['Proximal','Intermediate','Distal']},
+    {name:`${side}Middle`, ids:[9,10,11,12],segs:['Proximal','Intermediate','Distal']},
+    {name:`${side}Ring`,   ids:[13,14,15,16],segs:['Proximal','Intermediate','Distal']},
+    {name:`${side}Little`, ids:[17,18,19,20],segs:['Proximal','Intermediate','Distal']},
+  ];
+  const wr=v3.mp(lm[0]),ib=v3.mp(lm[5]),pb=v3.mp(lm[17]);
+  const hR=isL?v3.norm(v3.sub(pb,ib)):v3.norm(v3.sub(ib,pb));
+  const hU=v3.norm(v3.sub(ib,wr));
+  const hF=v3.norm(v3.cross(hR,hU));
+
+  for(const f of FINGERS){
+    for(let i=0;i<f.segs.length;i++){
+      const bn=`${f.name}${f.segs[i]}`;
+      const pp=v3.mp(lm[f.ids[i]]);
+      const cp=v3.mp(lm[f.ids[i+1]]);
+      const dir=v3.norm(v3.sub(cp,pp));
+      const ang=Math.max(0,-v3.dot(dir,hF))*Math.PI*0.8;
+      bones[bn]=sm(bn, qt.fromAA({x:isL?1:-1,y:0,z:0}, ang));
+    }
+  }
+}
+
+function sm(name, q){ return getSmoother(name).filter(qt.norm(q)); }
+
+// ── モニター更新 ────────────────────────────────────────────
+function updateMonitor(bones){
+  const bodyBones=['hips','spine','chest','leftUpperArm','rightUpperArm','leftLowerArm','rightLowerArm'];
+  const faceBones=['head','neck'];
+  const legL=['leftUpperLeg','leftLowerLeg','leftFoot','leftToes'];
+  const legR=['rightUpperLeg','rightLowerLeg','rightFoot','rightToes'];
+
+  function renderBones(id, list){
+    const el=document.getElementById(id);
+    el.innerHTML=list.map(bn=>{
+      const q=bones[bn]??[0,0,0,1];
+      const e=qt.toEuler(q);
+      const x=(e.x*R2D).toFixed(0), y=(e.y*R2D).toFixed(0), z=(e.z*R2D).toFixed(0);
+      return `<div class="bone-row"><span class="bname">${bn.replace(/([A-Z])/g,' $1').trim()}</span><span class="bval">${x}° ${y}° ${z}°</span></div>`;
+    }).join('');
+  }
+  renderBones('body-monitor', bodyBones);
+  renderBones('face-monitor', faceBones);
+  renderBones('leg-l-monitor', legL);
+  renderBones('leg-r-monitor', legR);
+}
+
+// ── レンダリングループ ───────────────────────────────────────
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  controls.update();
+  if(vrm) vrm.update(delta);
+  renderer.render(scene, camera);
+}
+animate();
+
+// ── ビデオ処理 ─────────────────────────────────────────────
+let mediapipeCamera = null;
+let videoEl = null;
+
+async function startWebcam(){
+  stopSource();
+  const stream = await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});
+  const v = document.getElementById('pip-video');
+  v.srcObject = stream; v.style.display='block';
+  document.getElementById('pip-overlay').style.display='block';
+  v.onloadedmetadata=()=>{
+    mediapipeCamera = new Camera(v, {
+      onFrame: async()=>{ if(holisticReady) await holistic.send({image:v}); },
+      width:640, height:480,
+    });
+    mediapipeCamera.start();
+    tracking=true;
+    setStatus('📷 Webカメラ トラッキング中...', 'active');
+  };
+  videoEl = v;
+}
+
+async function startVideo(file){
+  stopSource();
+  const url = URL.createObjectURL(file);
+  const v = document.getElementById('pip-video');
+  v.src = url; v.style.display='block';
+  document.getElementById('pip-overlay').style.display='block';
+  v.loop = true;
+  v.onloadedmetadata = async ()=>{
+    v.play();
+    tracking = true;
+    setStatus(`🎬 動画トラッキング中: ${file.name}`, 'active');
+    processVideoFrame(v);
+  };
+  videoEl = v;
+}
+
+async function processVideoFrame(v){
+  if(!tracking || v.paused || v.ended) return;
+  if(holisticReady) await holistic.send({image:v});
+  requestAnimationFrame(()=>processVideoFrame(v));
+}
+
+function stopSource(){
+  tracking=false;
+  if(mediapipeCamera){ mediapipeCamera.stop(); mediapipeCamera=null; }
+  const v = document.getElementById('pip-video');
+  if(v.srcObject){ v.srcObject.getTracks().forEach(t=>t.stop()); v.srcObject=null; }
+  v.src=''; v.style.display='none';
+  document.getElementById('pip-overlay').style.display='none';
+  resetSmoothers();
+}
+
+// ── UI イベント ─────────────────────────────────────────────
+function setStatus(msg, dotClass=''){
+  document.getElementById('status-text').textContent = msg;
+  const dot = document.getElementById('dot-mediapipe');
+  dot.className = 'status-dot' + (dotClass ? ' '+dotClass : '');
+}
+
+// VRMドロップゾーン
+const vrmDrop = document.getElementById('vrm-drop');
+const vrmFile = document.getElementById('vrm-file');
+vrmDrop.addEventListener('click', ()=>vrmFile.click());
+vrmDrop.addEventListener('dragover', e=>{ e.preventDefault(); vrmDrop.classList.add('dragover'); });
+vrmDrop.addEventListener('dragleave', ()=>vrmDrop.classList.remove('dragover'));
+vrmDrop.addEventListener('drop', e=>{ e.preventDefault(); vrmDrop.classList.remove('dragover'); const f=e.dataTransfer.files[0]; if(f?.name.endsWith('.vrm')) loadVRM(URL.createObjectURL(f), f.name); });
+vrmFile.addEventListener('change', e=>{ const f=e.target.files[0]; if(f) loadVRM(URL.createObjectURL(f), f.name); });
+
+// 動画ドロップゾーン
+const videoDrop = document.getElementById('video-drop');
+const videoFile = document.getElementById('video-file');
+videoDrop.addEventListener('click', ()=>videoFile.click());
+videoDrop.addEventListener('dragover', e=>{ e.preventDefault(); videoDrop.classList.add('dragover'); });
+videoDrop.addEventListener('dragleave', ()=>videoDrop.classList.remove('dragover'));
+videoDrop.addEventListener('drop', e=>{ e.preventDefault(); videoDrop.classList.remove('dragover'); const f=e.dataTransfer.files[0]; if(f) startVideo(f); });
+videoFile.addEventListener('change', e=>{ const f=e.target.files[0]; if(f) startVideo(f); });
+
+// Webカメラ
+document.getElementById('btn-webcam').addEventListener('click', startWebcam);
+
+// スライダー
+document.getElementById('smooth-slider').addEventListener('input', e=>{
+  smoothFactor = e.target.value/100;
+  document.getElementById('smooth-val').textContent=smoothFactor.toFixed(2);
+  resetSmoothers();
+});
+document.getElementById('model-slider').addEventListener('input', e=>{
+  modelComplexity = parseInt(e.target.value);
+  document.getElementById('model-val').textContent=modelComplexity;
+  holistic.setOptions({modelComplexity});
+});
+
+// チェックボックス
+document.getElementById('chk-hands').addEventListener('change', e=>useHands=e.target.checked);
+document.getElementById('chk-face').addEventListener('change',  e=>useFace =e.target.checked);
+document.getElementById('chk-mirror').addEventListener('change',e=>mirror  =e.target.checked);
+
+// BVH録画
+const btnRec   = document.getElementById('btn-rec');
+const btnStop  = document.getElementById('btn-stop-rec');
+const btnDL    = document.getElementById('btn-download');
+const recInd   = document.getElementById('rec-indicator');
+let recTimer;
+
+btnRec.addEventListener('click', ()=>{
+  if(!tracking){ alert('トラッキングを開始してから録画してください。'); return; }
+  bvhFrames=[]; bvhRecording=true;
+  recStartTime=Date.now();
+  btnRec.disabled=true; btnStop.disabled=false; btnDL.disabled=true;
+  recInd.style.display='flex';
+  recTimer=setInterval(()=>{
+    const sec=Math.floor((Date.now()-recStartTime)/1000);
+    document.getElementById('rec-time').textContent=`${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
+  },500);
+});
+
+btnStop.addEventListener('click', ()=>{
+  bvhRecording=false;
+  clearInterval(recTimer);
+  btnRec.disabled=false; btnStop.disabled=true; btnDL.disabled=false;
+  recInd.style.display='none';
+  setStatus(`✅ 録画完了 (${bvhFrames.length}フレーム)`, 'active');
+});
+
+btnDL.addEventListener('click', ()=>{
+  if(!bvhFrames.length){ alert('録画データがありません。'); return; }
+  const ft=(1/30).toFixed(6);
+  const content=[
+    BVH_HIER,'MOTION',
+    `Frames: ${bvhFrames.length}`,
+    `Frame Time: ${ft}`,
+    ...bvhFrames
+  ].join('\n');
+  const blob=new Blob([content],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`tracking_${Date.now()}.bvh`;
+  a.click();
+});
+</script>
+</body>
+</html>

@@ -129,6 +129,26 @@ const ModelProvider = () => {
                 }
               />
             </div>
+            <div className="my-6">
+              <div className="my-4 text-xl font-bold">
+                {t('OllamaContextLength')}
+              </div>
+              <div className="my-4 text-sm ">{t('OllamaContextLengthInfo')}</div>
+              <div className="my-2 text-sm ">ex. 4096, 8192</div>
+              <input
+                type="number"
+                min="0"
+                step="512"
+                className="px-4 py-2 w-140 bg-white hover:bg-white-hover rounded-lg"
+                value={state.ollamaContextLength}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value)
+                  if (!Number.isNaN(value) && value >= 0) {
+                    settingsStore.setState({ ollamaContextLength: value })
+                  }
+                }}
+              />
+            </div>
             <MultiModalToggle
               enabled={state.enableMultiModal}
               onToggle={() =>

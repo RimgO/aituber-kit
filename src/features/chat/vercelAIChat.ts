@@ -35,6 +35,7 @@ const getAIConfig = () => {
     customApiStream: ss.customApiStream,
     includeSystemMessagesInCustomApi: ss.includeSystemMessagesInCustomApi,
     customApiIncludeMimeType: ss.customApiIncludeMimeType,
+    ollamaContextLength: ss.ollamaContextLength,
   }
 }
 
@@ -67,6 +68,7 @@ export async function getVercelAIChatResponse(messages: Message[]) {
     customApiHeaders,
     customApiBody,
     customApiIncludeMimeType,
+    ollamaContextLength,
   } = getAIConfig()
 
   // APIエンドポイントを決定
@@ -106,6 +108,7 @@ export async function getVercelAIChatResponse(messages: Message[]) {
         useSearchGrounding,
         temperature,
         maxTokens,
+        ollamaContextLength,
       })
     }
 
@@ -152,6 +155,7 @@ export async function getVercelAIChatResponseStream(
     customApiHeaders,
     customApiBody,
     customApiIncludeMimeType,
+    ollamaContextLength,
   } = getAIConfig()
 
   // APIエンドポイントを決定
@@ -190,6 +194,7 @@ export async function getVercelAIChatResponseStream(
       useSearchGrounding,
       temperature,
       maxTokens,
+      ollamaContextLength,
     })
   }
 

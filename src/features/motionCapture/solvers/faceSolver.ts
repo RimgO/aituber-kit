@@ -141,7 +141,8 @@ export const solveFace = (results: any, calibEyeMax?: number) => {
   // Roll（傾き）: 頬の高さ差から
   const roll = ((leftCheek.y - rightCheek.y) / faceWidth) * 0.5
 
-  const pitch = Math.min(1, Math.max(-1, -noseOffsetY * 0.6))
+  // Pitch: 現状の座標変換では前後が逆転していたため符号を反転
+  const pitch = Math.min(1, Math.max(-1, noseOffsetY * 0.6))
   const yaw = Math.min(1, Math.max(-1, -noseOffsetX * 0.8))
   const rollClamped = Math.min(1, Math.max(-1, roll))
 

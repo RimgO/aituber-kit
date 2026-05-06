@@ -120,6 +120,9 @@ interface ModelProvider extends Live2DSettings {
   nijivoiceSpeed: number
   nijivoiceEmotionalLevel: number
   nijivoiceSoundDuration: number
+  irodoriServerUrl: string
+  irodoriRefWavPath: string
+  irodoriNoRef: boolean
 }
 
 interface Integrations {
@@ -224,6 +227,7 @@ interface General {
   enableMultiModal: boolean
   colorTheme: 'default' | 'cool' | 'mono' | 'ocean' | 'forest' | 'sunset'
   customModel: boolean
+  ollamaContextLength: number
 }
 
 interface ModelType {
@@ -521,6 +525,9 @@ const getInitialValuesFromEnv = (): SettingsState => ({
   // Custom model toggle
   customModel: process.env.NEXT_PUBLIC_CUSTOM_MODEL === 'true',
 
+  ollamaContextLength:
+    parseInt(process.env.NEXT_PUBLIC_OLLAMA_CONTEXT_LENGTH || '4096') || 4096,
+
   // NijiVoice settings
   nijivoiceApiKey: '',
   nijivoiceActorId: process.env.NEXT_PUBLIC_NIJIVOICE_ACTOR_ID || '',
@@ -532,6 +539,11 @@ const getInitialValuesFromEnv = (): SettingsState => ({
   nijivoiceSoundDuration:
     parseFloat(process.env.NEXT_PUBLIC_NIJIVOICE_SOUND_DURATION || '0.1') ||
     0.1,
+
+  // Irodori TTS
+  irodoriServerUrl: process.env.NEXT_PUBLIC_IRODORI_SERVER_URL || 'http://localhost:8000/synthesize',
+  irodoriRefWavPath: process.env.NEXT_PUBLIC_IRODORI_REF_WAV_PATH || '',
+  irodoriNoRef: process.env.NEXT_PUBLIC_IRODORI_NO_REF === 'true',
 
   // Settings
   modelType: (process.env.NEXT_PUBLIC_MODEL_TYPE as 'vrm' | 'live2d') || 'vrm',
@@ -693,6 +705,9 @@ const settingsStore = create<SettingsState>()(
       nijivoiceSpeed: state.nijivoiceSpeed,
       nijivoiceEmotionalLevel: state.nijivoiceEmotionalLevel,
       nijivoiceSoundDuration: state.nijivoiceSoundDuration,
+      irodoriServerUrl: state.irodoriServerUrl,
+      irodoriRefWavPath: state.irodoriRefWavPath,
+      irodoriNoRef: state.irodoriNoRef,
       modelType: state.modelType,
       neutralEmotions: state.neutralEmotions,
       happyEmotions: state.happyEmotions,
@@ -733,6 +748,7 @@ const settingsStore = create<SettingsState>()(
       enableMultiModal: state.enableMultiModal,
       colorTheme: state.colorTheme,
       customModel: state.customModel,
+      ollamaContextLength: state.ollamaContextLength,
       enableMotionCapture: state.enableMotionCapture,
       enableFaceTracking: state.enableFaceTracking,
       enableHandTracking: state.enableHandTracking,

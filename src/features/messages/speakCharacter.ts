@@ -18,6 +18,7 @@ import toastStore from '@/features/stores/toast'
 import i18next from 'i18next'
 import { SpeakQueue } from './speakQueue'
 import { synthesizeVoiceNijivoiceApi } from './synthesizeVoiceNijivoice'
+import { synthesizeVoiceIrodoriApi } from './synthesizeVoiceIrodori'
 import { Live2DHandler } from './live2dHandler'
 import {
   asyncConvertEnglishToJapaneseReading,
@@ -184,6 +185,13 @@ async function synthesizeVoice(
           ss.nijivoiceSpeed,
           ss.nijivoiceEmotionalLevel,
           ss.nijivoiceSoundDuration
+        )
+      case 'irodori':
+        return await synthesizeVoiceIrodoriApi(
+          talk,
+          ss.irodoriServerUrl,
+          ss.irodoriNoRef,
+          ss.irodoriRefWavPath
         )
       default:
         return null
@@ -388,6 +396,7 @@ export const testVoice = async (voiceType: AIVoice, customText?: string) => {
     openai: 'OpenAI TTSを使用します',
     azure: 'Azure TTSを使用します',
     nijivoice: 'にじボイスを使用します',
+    irodori: 'Irodori-TTSを使用します',
   }
 
   const message = customText || defaultMessages[voiceType]

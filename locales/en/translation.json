@@ -53,6 +53,8 @@
   "APIKeyInstruction": "API keys can be obtained from the links below. Enter the obtained API key in the form.",
   "LocalLLMInfo": "You need to have a local LLM server running.",
   "LocalLLMInfo2": "Please enter the URL of your local LLM (including port number) and the model name.",
+  "OllamaContextLength": "Context Length",
+  "OllamaContextLengthInfo": "Limiting the context length can reduce memory usage and improve response speed. Set to 0 to use the model's default.",
   "GroqInfo": "Groq API is accessed directly from the browser.",
   "DifyInfo": "Dify only supports chatbot or agent types. If you do not receive a satisfactory answer, please delete the conversation history and ask again.",
   "DifyInfo2": "The length of conversation history depends on the Dify chatbot settings.",

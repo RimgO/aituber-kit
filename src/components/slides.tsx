@@ -87,8 +87,25 @@ const Slides: React.FC<SlidesProps> = ({ markdown }) => {
   useEffect(() => {
     // カスタムCSSを適用
     const customStyle = `
+      div.marpit {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+      }
+      div.marpit > svg {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+        shape-rendering: geometricPrecision;
+        text-rendering: optimizeLegibility;
+      }
+      div.marpit > svg img, 
+      div.marpit > svg image {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+      }
       div.marpit > svg > foreignObject > section {
         padding: 2em;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
       }
     `
     const styleElement = document.createElement('style')

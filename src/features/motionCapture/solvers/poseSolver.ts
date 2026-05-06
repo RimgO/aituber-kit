@@ -125,13 +125,27 @@ export const solvePose = (poseLandmarks: any[], poseWorldLandmarks: any[]) => {
   }
 
   // --- Legs ---
-  rig['LeftUpperLeg'] = calcBoneRotation(lm[POSE_LANDMARKS.leftHip], lm[POSE_LANDMARKS.leftKnee], new THREE.Vector3(0, -1, 0))
-  rig['LeftLowerLeg'] = calcBoneRotation(lm[POSE_LANDMARKS.leftKnee], lm[POSE_LANDMARKS.leftAnkle], new THREE.Vector3(0, -1, 0))
-  rig['LeftFoot'] = calcBoneRotation(lm[POSE_LANDMARKS.leftAnkle], lm[POSE_LANDMARKS.leftFootIndex], new THREE.Vector3(0, 0, 1))
+  const lHip3 = lm[POSE_LANDMARKS.leftHip]
+  const lKnee3 = lm[POSE_LANDMARKS.leftKnee]
+  const lAnkle3 = lm[POSE_LANDMARKS.leftAnkle]
+  const lToes3 = lm[POSE_LANDMARKS.leftFootIndex]
 
-  rig['RightUpperLeg'] = calcBoneRotation(lm[POSE_LANDMARKS.rightHip], lm[POSE_LANDMARKS.rightKnee], new THREE.Vector3(0, -1, 0))
-  rig['RightLowerLeg'] = calcBoneRotation(lm[POSE_LANDMARKS.rightKnee], lm[POSE_LANDMARKS.rightAnkle], new THREE.Vector3(0, -1, 0))
-  rig['RightFoot'] = calcBoneRotation(lm[POSE_LANDMARKS.rightAnkle], lm[POSE_LANDMARKS.rightFootIndex], new THREE.Vector3(0, 0, 1))
+  rig['LeftUpperLeg'] = calcBoneRotation(lHip3, lKnee3, new THREE.Vector3(0, -1, 0))
+  rig['LeftLowerLeg'] = calcBoneRotation(lKnee3, lAnkle3, new THREE.Vector3(0, -1, 0))
+  // 足首: 足ボーンのレスト方向を「下向き -Y」とし、足の裏が地面を向くようにする
+  rig['LeftFoot'] = calcBoneRotation(lAnkle3, lToes3, new THREE.Vector3(0, -1, 0))
+  // つま先: 方向自体は前方を向くため Z+ をレスト方向とする（足首基準）
+  rig['LeftToes'] = calcBoneRotation(lAnkle3, lToes3, new THREE.Vector3(0, 0, 1))
+
+  const rHip3 = lm[POSE_LANDMARKS.rightHip]
+  const rKnee3 = lm[POSE_LANDMARKS.rightKnee]
+  const rAnkle3 = lm[POSE_LANDMARKS.rightAnkle]
+  const rToes3 = lm[POSE_LANDMARKS.rightFootIndex]
+
+  rig['RightUpperLeg'] = calcBoneRotation(rHip3, rKnee3, new THREE.Vector3(0, -1, 0))
+  rig['RightLowerLeg'] = calcBoneRotation(rKnee3, rAnkle3, new THREE.Vector3(0, -1, 0))
+  rig['RightFoot'] = calcBoneRotation(rAnkle3, rToes3, new THREE.Vector3(0, -1, 0))
+  rig['RightToes'] = calcBoneRotation(rAnkle3, rToes3, new THREE.Vector3(0, 0, 1))
 
   return rig
 }

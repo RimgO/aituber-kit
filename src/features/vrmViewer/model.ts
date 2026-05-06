@@ -31,6 +31,9 @@ export class Model {
   private _lipSync?: LipSync
   private _initialHipY: number = 1.0
 
+  private _gestureTime: number = 0
+  private _activeGesture: string = ''
+
   private _debugSkeletonGroup?: THREE.Group
   private _debugPoints?: THREE.Points
   private _debugLines?: THREE.LineSegments
@@ -160,6 +163,7 @@ export class Model {
 
   public async speak(buffer: ArrayBuffer, talk: Talk, isNeedDecode: boolean = true) {
     this.emoteController?.playEmotion(talk.emotion)
+    this.playGesture(talk.emotion)
     await new Promise(r => this._lipSync?.playFromArrayBuffer(buffer, () => r(true), isNeedDecode))
   }
 
@@ -171,6 +175,20 @@ export class Model {
     this.emoteController?.playEmotion(preset)
   }
 
+  public playGesture(emotion: string) {
+    if (!this.vrm || !this.vrm.humanoid) return;
+    if (['happy', 'sad', 'angry', 'surprised', 'relaxed'].includes(emotion)) {
+      // 同じ感情が連続した場合は、アニメーションを最初からリセットせずに継続させる
+      // ただし、前回のアニメーションが完全に終わっている(>3.0)場合はリセットする
+      if (this._activeGesture !== emotion || this._gestureTime > 3.0) {
+        this._gestureTime = 0;
+        this._activeGesture = emotion;
+      }
+    } else {
+      this._activeGesture = '';
+    }
+  }
+
   public update(delta: number): void {
     if (this._lipSync) {
       const { volume } = this._lipSync.update()
@@ -178,6 +196,73 @@ export class Model {
     }
     this.emoteController?.update(delta)
     this.mixer?.update(delta)
+
+    if (this._activeGesture && this.vrm && this.vrm.humanoid) {
+      this._gestureTime += delta;
+      const t = this._gestureTime;
+      const tMax = 3.0; // Gesture lasts 3 seconds
+      
+      if (t < tMax) {
+        const progress = t / tMax;
+        const wave = Math.sin(progress * Math.PI); // 0 -> 1 -> 0
+
+        const leftArm = this.vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+        const rightArm = this.vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+        const head = this.vrm.humanoid.getNormalizedBoneNode('head');
+        const spine = this.vrm.humanoid.getNormalizedBoneNode('spine');
+
+        if (this._activeGesture === 'happy') {
+            // Happy: Arms up (バンザイ), slightly jumping or swinging
+            if (leftArm && rightArm) {
+                const raiseRot = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, Math.PI / 2.5 * wave));
+                const raiseRotR = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 2.5 * wave));
+                leftArm.quaternion.slerp(raiseRot, wave);
+                rightArm.quaternion.slerp(raiseRotR, wave);
+            }
+        } else if (this._activeGesture === 'sad') {
+            // Sad: Look down, slouch
+            if (head) {
+                const tilt = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 6 * wave, 0, 0));
+                head.quaternion.slerp(tilt, wave);
+            }
+            if (leftArm && rightArm) {
+                const droop = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 8 * wave));
+                const droopR = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, Math.PI / 8 * wave));
+                leftArm.quaternion.slerp(droop, wave);
+                rightArm.quaternion.slerp(droopR, wave);
+            }
+        } else if (this._activeGesture === 'angry') {
+            // Angry: Head shake slightly
+            if (head) {
+                const shake = Math.sin(progress * Math.PI * 12) * 0.1 * wave;
+                const tilt = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, shake, 0));
+                head.quaternion.slerp(tilt, wave);
+            }
+        } else if (this._activeGesture === 'surprised') {
+            // Surprised: lean back, arms slightly open
+            if (spine) {
+                const lean = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 12 * wave, 0, 0));
+                spine.quaternion.slerp(lean, wave);
+            }
+            if (leftArm && rightArm) {
+                const open = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 6 * wave, 0, Math.PI / 6 * wave));
+                const openR = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 6 * wave, 0, -Math.PI / 6 * wave));
+                leftArm.quaternion.slerp(open, wave);
+                rightArm.quaternion.slerp(openR, wave);
+            }
+        } else if (this._activeGesture === 'relaxed') {
+            // Relaxed: gentle body sway
+            if (spine) {
+                const sway = Math.sin(progress * Math.PI * 2) * 0.05 * wave;
+                const lean = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, sway));
+                spine.quaternion.slerp(lean, wave);
+            }
+        }
+      } else {
+        this._activeGesture = '';
+      }
+    }
+
     this.vrm?.update(delta)
   }
 
@@ -191,8 +276,6 @@ export class Model {
     if (!this._debugSkeletonGroup) {
       const group = new THREE.Group()
       this._debugSkeletonGroup = group
-      if (this.vrm) (this.vrm.scene.parent || this.vrm.scene).add(group)
-
       const matPoints = new THREE.PointsMaterial({ color: 0x00ff00, size: 0.05, depthTest: false, depthWrite: false })
       const matLines = new THREE.LineBasicMaterial({ color: 0xff0000, depthTest: false, depthWrite: false })
       const geoPoints = new THREE.BufferGeometry()
@@ -213,12 +296,17 @@ export class Model {
       geoVrmL.setAttribute('position', new THREE.BufferAttribute(new Float32Array(POSE_CONNECTIONS.length * 2 * 3), 3))
       this._vrmDebugLines = new THREE.LineSegments(geoVrmL, matVrmL)
 
-      this._debugPoints.renderOrder = 999
-      this._debugLines.renderOrder = 999
-      this._vrmDebugPoints.renderOrder = 1000
-      this._vrmDebugLines.renderOrder = 1000
+      this._debugPoints.renderOrder = 2000
+      this._debugLines.renderOrder = 2000
+      this._vrmDebugPoints.renderOrder = 2001
+      this._vrmDebugLines.renderOrder = 2001
 
       group.add(this._debugPoints, this._debugLines, this._vrmDebugPoints, this._vrmDebugLines)
+    }
+
+    // Ensure the group is in the scene
+    if (this._debugSkeletonGroup && !this._debugSkeletonGroup.parent && this.vrm) {
+       ;(this.vrm.scene.parent || this.vrm.scene).add(this._debugSkeletonGroup)
     }
 
     this._debugSkeletonGroup.visible = true
@@ -227,15 +315,29 @@ export class Model {
       (riggedPose?.Hips?.worldPosition?.y || 0) + this._initialHipY,
       riggedPose?.Hips?.worldPosition?.z || 0
     )
+    // MediaPipe デバッグ骨格を VRM の横に並べて表示するためのオフセット
+    // ユーザーの指示: VRMの左側に配置
+    const mocapSideBySideOffset = new THREE.Vector3(-0.8, 0, 0)
+
+    // MediaPipeの頭の基準 (POSE_LANDMARKS.nose は通常 0)
+    // VRMの頭の高さ (Hipsから上のNeck/Headの位置。簡易的に _initialHipY * some_factor または実測)
+    // ここでは MediaPipe の Skeleton 全体を、頭(Nose)が VRM の Hips + 身長の 80% 程度の位置に来るように調整
+    let mpTopAdjustment = 0
+    if (poseWorldLandmarks[0]) {
+      const noseLM = mediapipeWorldToVRMCoords(poseWorldLandmarks[0])
+      // VRMの頭の位置想定 (簡易)
+      const vrmHeadY = this._initialHipY * 1.8 
+      mpTopAdjustment = vrmHeadY - (noseLM.y + hipOffset.y)
+    }
 
     // Update raw landmarks (Red)
     const points = this._debugPoints!.geometry.attributes.position.array as Float32Array
     for (let i = 0; i < 33; i++) {
         const rawLM = poseWorldLandmarks[i]
         const vrmLM = mediapipeWorldToVRMCoords(rawLM) 
-        points[i * 3] = vrmLM.x + hipOffset.x
-        points[i * 3 + 1] = vrmLM.y + hipOffset.y
-        points[i * 3 + 2] = vrmLM.z + hipOffset.z
+        points[i * 3] = vrmLM.x + hipOffset.x + mocapSideBySideOffset.x
+        points[i * 3 + 1] = vrmLM.y + hipOffset.y + mocapSideBySideOffset.y + mpTopAdjustment
+        points[i * 3 + 2] = vrmLM.z + hipOffset.z + mocapSideBySideOffset.z
     }
     this._debugPoints!.geometry.attributes.position.needsUpdate = true
 
@@ -247,8 +349,8 @@ export class Model {
         if (p1Raw && p2Raw) {
             const p1 = mediapipeWorldToVRMCoords(p1Raw)
             const p2 = mediapipeWorldToVRMCoords(p2Raw)
-            lines[lineIdx++] = p1.x + hipOffset.x; lines[lineIdx++] = p1.y + hipOffset.y; lines[lineIdx++] = p1.z + hipOffset.z
-            lines[lineIdx++] = p2.x + hipOffset.x; lines[lineIdx++] = p2.y + hipOffset.y; lines[lineIdx++] = p2.z + hipOffset.z
+            lines[lineIdx++] = p1.x + hipOffset.x + mocapSideBySideOffset.x; lines[lineIdx++] = p1.y + hipOffset.y + mocapSideBySideOffset.y + mpTopAdjustment; lines[lineIdx++] = p1.z + hipOffset.z + mocapSideBySideOffset.z
+            lines[lineIdx++] = p2.x + hipOffset.x + mocapSideBySideOffset.x; lines[lineIdx++] = p2.y + hipOffset.y + mocapSideBySideOffset.y + mpTopAdjustment; lines[lineIdx++] = p2.z + hipOffset.z + mocapSideBySideOffset.z
         }
     }
     this._debugLines!.geometry.attributes.position.needsUpdate = true

@@ -99,6 +99,9 @@ const Voice = () => {
     (s) => s.nijivoiceEmotionalLevel
   )
   const nijivoiceSoundDuration = settingsStore((s) => s.nijivoiceSoundDuration)
+  const irodoriServerUrl = settingsStore((s) => s.irodoriServerUrl)
+  const irodoriRefWavPath = settingsStore((s) => s.irodoriRefWavPath)
+  const irodoriNoRef = settingsStore((s) => s.irodoriNoRef)
 
   const { t } = useTranslation()
   const [nijivoiceSpeakers, setNijivoiceSpeakers] = useState<Array<any>>([])
@@ -220,6 +223,7 @@ const Voice = () => {
           <option value="openai">{t('UsingOpenAITTS')}</option>
           <option value="azure">{t('UsingAzureTTS')}</option>
           <option value="nijivoice">{t('UsingNijiVoice')}</option>
+          <option value="irodori">Irodori-TTSを使用する</option>
         </select>
       </div>
 
@@ -1376,6 +1380,53 @@ const Voice = () => {
                     })
                   }}
                 />
+              </>
+            )
+          } else if (selectVoice === 'irodori') {
+            return (
+              <>
+                <div>Irodori-TTSの設定 (Parent Voice Generator)</div>
+                <div className="mt-4 font-bold">APIサーバーのURL</div>
+                <div className="mt-2">
+                  <input
+                    className="text-ellipsis px-4 py-2 w-full bg-white hover:bg-white-hover rounded-lg"
+                    type="text"
+                    placeholder="http://localhost:8000/synthesize"
+                    value={irodoriServerUrl}
+                    onChange={(e) =>
+                      settingsStore.setState({
+                        irodoriServerUrl: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="mt-4 font-bold">リファレンス音声（親の声）のパス</div>
+                <div className="mt-2">
+                  <input
+                    className="text-ellipsis px-4 py-2 w-full bg-white hover:bg-white-hover rounded-lg"
+                    type="text"
+                    placeholder="/path/to/parent_voice.wav"
+                    value={irodoriRefWavPath}
+                    onChange={(e) =>
+                      settingsStore.setState({
+                        irodoriRefWavPath: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="mt-4 flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={irodoriNoRef}
+                    onChange={(e) =>
+                      settingsStore.setState({
+                        irodoriNoRef: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary"
+                  />
+                  <span className="ml-2">リファレンス音声を使用しない（クローンせずデフォルトの声を使う）</span>
+                </div>
               </>
             )
           }

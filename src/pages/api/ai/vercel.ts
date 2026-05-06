@@ -43,6 +43,7 @@ export default async function handler(req: NextRequest) {
     dynamicRetrievalThreshold,
     temperature = 1.0,
     maxTokens = 4096,
+    ollamaContextLength,
   } = await req.json()
 
   // APIキーの取得と検証
@@ -171,6 +172,7 @@ export default async function handler(req: NextRequest) {
         messages: modifiedMessages,
         temperature,
         maxTokens,
+        ollamaContextLength,
         options,
       })
     } else {
@@ -180,6 +182,7 @@ export default async function handler(req: NextRequest) {
         messages: modifiedMessages,
         temperature,
         maxTokens,
+        ollamaContextLength,
       })
     }
   } catch (error) {

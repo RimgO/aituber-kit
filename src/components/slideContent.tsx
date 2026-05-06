@@ -9,7 +9,12 @@ const SlideContent: React.FC<SlideContentProps> = ({ marpitContainer }) => {
     <div style={{ border: '2px solid #333' }}>
       {marpitContainer && (
         <div
-          style={{ width: '100%', height: '100%', overflow: 'hidden' }}
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            overflow: 'hidden',
+            imageRendering: '-webkit-optimize-contrast',
+          }}
           dangerouslySetInnerHTML={{ __html: marpitContainer.outerHTML }}
         />
       )}
