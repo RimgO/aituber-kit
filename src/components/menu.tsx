@@ -236,7 +236,8 @@ export const Menu = () => {
         >
           {showControlPanel && (
             <>
-              <div className="md:order-1 order-2">
+              {/* 設定ボタン: ParentHeaderに移動したため非表示 */}
+              <div className="md:order-1 order-2 hidden">
                 <IconButton
                   iconName="24/Settings"
                   isProcessing={false}
@@ -259,14 +260,15 @@ export const Menu = () => {
               </div>
               {!youtubeMode && (
                 <>
-                  <div className="order-3">
+                  {/* Capture/Camera ボタン: Parent Voice Generatorでは非表示 */}
+                  <div className="order-3 hidden">
                     <IconButton
                       iconName="screen-share"
                       isProcessing={false}
                       onClick={toggleCapture}
                     />
                   </div>
-                  <div className="order-4">
+                  <div className="order-4 hidden">
                     <IconButton
                       iconName="24/Camera"
                       isProcessing={false}
@@ -307,8 +309,9 @@ export const Menu = () => {
                   )}
                 </>
               )}
+              {/* YouTubeボタン: Parent Voice Generatorでは非表示 */}
               {youtubeMode && (
-                <div className="order-5">
+                <div className="order-5 hidden">
                   <IconButton
                     iconName={youtubePlaying ? '24/PauseAlt' : '24/Video'}
                     isProcessing={false}
@@ -320,8 +323,9 @@ export const Menu = () => {
                   />
                 </div>
               )}
+              {/* スライドボタン: Parent Voice Generatorでは非表示 */}
               {slideMode && (
-                <div className="order-5">
+                <div className="order-5 hidden">
                   <IconButton
                     iconName="24/FrameEffect"
                     isProcessing={false}
@@ -332,7 +336,8 @@ export const Menu = () => {
                   />
                 </div>
               )}
-              <div className="order-6">
+              {/* 録画ボタン: Parent Voice Generatorでは非表示 */}
+              <div className="order-6 hidden">
                 <IconButton
                   iconName={isRecording ? 'stop' : 'record'}
                   isProcessing={false}

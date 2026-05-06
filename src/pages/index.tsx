@@ -105,7 +105,12 @@ const Home = () => {
       ? {}
       : backgroundImageUrl === 'green'
         ? { backgroundColor: '#00FF00' }
-        : { backgroundImage: bgUrl }
+        : backgroundImageUrl
+          ? { backgroundImage: bgUrl }
+          : {
+              background:
+                'linear-gradient(160deg, #FFF5EE 0%, #FFE4E8 50%, #FFF0F5 100%)',
+            }
 
   return (
     <div className="h-[100svh] bg-cover" style={backgroundStyle}>
@@ -113,6 +118,7 @@ const Home = () => {
       <Introduction />
       {modelType === 'vrm' ? <VrmViewer /> : <Live2DViewer />}
       <Form />
+      {/* 元の Menu は機能ロジック（Webcam/Capture等）のために残す、ただしcontrolPanelはオフ推奨 */}
       <Menu />
       <ModalImage />
       {messageReceiverEnabled && <MessageReceiver />}

@@ -1,9 +1,9 @@
 import { buildUrl } from '@/utils/buildUrl'
 import Head from 'next/head'
 export const Meta = () => {
-  const title = 'AITuberKit'
+  const title = 'Parent Voice Generator'
   const description =
-    'Webブラウザだけで誰でも簡単にAIキャラと会話したり、Youtubeで配信したりできます。'
+    '親の声をAIで再現し、3Dアバターを通じて子供と会話・読み聞かせができるアプリです。'
   const imageUrl = '/ogp.png'
   return (
     <Head>
@@ -16,6 +16,10 @@ export const Meta = () => {
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={imageUrl} />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap"
+        rel="stylesheet"
+      />
     </Head>
   )
 }
