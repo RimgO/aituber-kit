@@ -74,7 +74,7 @@ export const mediapipeToVRMCoords = (landmark: {
   return new THREE.Vector3(
     landmark.x - 0.5,      // Screen Left 0 → Three.js Left -0.5
     -(landmark.y - 0.5),   // Screen Top 0 → Three.js Up +0.5 （Y 反転）
-    -landmark.z            // Depth is mirrored to face the camera
+    landmark.z             // Depth aligned to avatar facing (+Z)
   )
 }
 
@@ -87,7 +87,7 @@ export const mediapipeToVRMCoords = (landmark: {
  *    MediaPipe World では下向きが正になるケースが多いため、VRM(three.js) の上向き正に合わせて -landmark.y とする。
  *    Formula: -landmark.y
  * Z: Subject's Back/Forward (+Z) -> Avatar Depth.
- *    上下反転には関係しないので、そのまま扱う（必要に応じてあとで調整）。
+ *    Avatar is facing +Z in current setup.
  *    Formula: landmark.z
  */
 export const lookRotation = (forward: THREE.Vector3, up: THREE.Vector3): THREE.Quaternion => {
@@ -100,7 +100,7 @@ export const lookRotation = (forward: THREE.Vector3, up: THREE.Vector3): THREE.Q
  * Mirror Mode Mapping (creativeIKEP style):
  * X: -landmark.x
  * Y: -landmark.y
- * Z: -landmark.z
+ * Z: landmark.z
  */
 export const mediapipeWorldToVRMCoords = (landmark: {
   x: number
@@ -110,7 +110,7 @@ export const mediapipeWorldToVRMCoords = (landmark: {
   return new THREE.Vector3(
     -landmark.x, 
     -landmark.y, 
-    -landmark.z
+    landmark.z
   )
 }
 
