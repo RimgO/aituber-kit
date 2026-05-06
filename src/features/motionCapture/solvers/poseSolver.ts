@@ -75,80 +75,67 @@ export const solvePose = (poseLandmarks: any[], poseWorldLandmarks: any[]) => {
   rig['UpperChest'] = distribute(spineRotation, 0.2)
 
   // --- Arms ---
-  // Use 3D world座標（lm）ベースで腕の向きを決定する
   const getWorld = (idx: number) => lm[idx]
 
-  // Body Up Vector for Arms (using Hips Forward as the 'Up' for arm orientation)
-  const armUp = hipsForward.clone()
-
-  // Left Arm (Humanoid Left)
+  // Subject's RIGHT (12, 14, 16) -> Avatar's LEFT
   {
-    const lSho = getWorld(POSE_LANDMARKS.leftShoulder)
-    const lElb = getWorld(POSE_LANDMARKS.leftElbow)
-    const lWrs = getWorld(POSE_LANDMARKS.leftWrist)
+    const sho = getWorld(POSE_LANDMARKS.rightShoulder)
+    const elb = getWorld(POSE_LANDMARKS.rightElbow)
+    const wrs = getWorld(POSE_LANDMARKS.rightWrist)
 
-    const upperDir = new THREE.Vector3().subVectors(lElb, lSho).normalize()
-    // LookRotation: Forward = upperDir, Up = body forward
-    // This points the bone's Z axis at the target elbow.
-    const lUpperLookQ = lookRotation(upperDir, armUp)
-    
-    // VRM Left Upper Arm rests at +X. Map +X to the solved Z-axis.
-    // Correction: Rotate -90 deg around Y to bring +X to +Z.
-    const lUpperCorr = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2)
-    const lUpperQ = lUpperLookQ.clone().multiply(lUpperCorr)
-    rig['LeftUpperArm'] = lUpperQ
+    const upperDir = new THREE.Vector3().subVectors(elb, sho).normalize()
+    const lookQ = lookRotation(upperDir, new THREE.Vector3(0, 1, 0))
+    const corr = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2)
+    const upperQ = lookQ.clone().multiply(corr)
+    rig['LeftUpperArm'] = upperQ
 
-    const lowerDir = new THREE.Vector3().subVectors(lWrs, lElb).normalize()
-    const lLowerLookQ = lookRotation(lowerDir, armUp)
-    // Map +X to +Z
-    const lLowerQ = lLowerLookQ.clone().multiply(lUpperCorr).premultiply(lUpperQ.clone().invert())
-    rig['LeftLowerArm'] = lLowerQ
+    const lowerDir = new THREE.Vector3().subVectors(wrs, elb).normalize()
+    const lowerLookQ = lookRotation(lowerDir, new THREE.Vector3(0, 1, 0))
+    const lowerQ = lowerLookQ.clone().multiply(corr).premultiply(upperQ.clone().invert())
+    rig['LeftLowerArm'] = lowerQ
   }
 
-  // Right Arm (Humanoid Right)
+  // Subject's LEFT (11, 13, 15) -> Avatar's RIGHT
   {
-    const rSho = getWorld(POSE_LANDMARKS.rightShoulder)
-    const rElb = getWorld(POSE_LANDMARKS.rightElbow)
-    const rWrs = getWorld(POSE_LANDMARKS.rightWrist)
+    const sho = getWorld(POSE_LANDMARKS.leftShoulder)
+    const elb = getWorld(POSE_LANDMARKS.leftElbow)
+    const wrs = getWorld(POSE_LANDMARKS.leftWrist)
 
-    const upperDir = new THREE.Vector3().subVectors(rElb, rSho).normalize()
-    const rUpperLookQ = lookRotation(upperDir, armUp)
-    
-    // VRM Right Upper Arm rests at -X. Map -X to the solved Z-axis.
-    // Correction: Rotate +90 deg around Y to bring -X to +Z.
-    const rUpperCorr = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2)
-    const rUpperQ = rUpperLookQ.clone().multiply(rUpperCorr)
-    rig['RightUpperArm'] = rUpperQ
+    const upperDir = new THREE.Vector3().subVectors(elb, sho).normalize()
+    const lookQ = lookRotation(upperDir, new THREE.Vector3(0, 1, 0))
+    const corr = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2)
+    const upperQ = lookQ.clone().multiply(corr)
+    rig['RightUpperArm'] = upperQ
 
-    const lowerDir = new THREE.Vector3().subVectors(rWrs, rElb).normalize()
-    const rLowerLookQ = lookRotation(lowerDir, armUp)
-    // Map -X to +Z
-    const rLowerQ = rLowerLookQ.clone().multiply(rUpperCorr).premultiply(rUpperQ.clone().invert())
-    rig['RightLowerArm'] = rLowerQ
+    const lowerDir = new THREE.Vector3().subVectors(wrs, elb).normalize()
+    const lowerLookQ = lookRotation(lowerDir, new THREE.Vector3(0, 1, 0))
+    const lowerQ = lowerLookQ.clone().multiply(corr).premultiply(upperQ.clone().invert())
+    rig['RightLowerArm'] = lowerQ
   }
 
   // --- Legs ---
-  const lHip3 = lm[POSE_LANDMARKS.leftHip]
-  const lKnee3 = lm[POSE_LANDMARKS.leftKnee]
-  const lAnkle3 = lm[POSE_LANDMARKS.leftAnkle]
-  const lToes3 = lm[POSE_LANDMARKS.leftFootIndex]
-
-  rig['LeftUpperLeg'] = calcBoneRotation(lHip3, lKnee3, new THREE.Vector3(0, -1, 0))
-  rig['LeftLowerLeg'] = calcBoneRotation(lKnee3, lAnkle3, new THREE.Vector3(0, -1, 0))
-  // 足首: 足ボーンのレスト方向を「下向き -Y」とし、足の裏が地面を向くようにする
-  rig['LeftFoot'] = calcBoneRotation(lAnkle3, lToes3, new THREE.Vector3(0, -1, 0))
-  // つま先: 方向自体は前方を向くため Z+ をレスト方向とする（足首基準）
-  rig['LeftToes'] = calcBoneRotation(lAnkle3, lToes3, new THREE.Vector3(0, 0, 1))
-
+  // Subject's RIGHT -> Avatar's LEFT
   const rHip3 = lm[POSE_LANDMARKS.rightHip]
   const rKnee3 = lm[POSE_LANDMARKS.rightKnee]
   const rAnkle3 = lm[POSE_LANDMARKS.rightAnkle]
   const rToes3 = lm[POSE_LANDMARKS.rightFootIndex]
 
-  rig['RightUpperLeg'] = calcBoneRotation(rHip3, rKnee3, new THREE.Vector3(0, -1, 0))
-  rig['RightLowerLeg'] = calcBoneRotation(rKnee3, rAnkle3, new THREE.Vector3(0, -1, 0))
-  rig['RightFoot'] = calcBoneRotation(rAnkle3, rToes3, new THREE.Vector3(0, -1, 0))
-  rig['RightToes'] = calcBoneRotation(rAnkle3, rToes3, new THREE.Vector3(0, 0, 1))
+  rig['LeftUpperLeg'] = calcBoneRotation(rHip3, rKnee3, new THREE.Vector3(0, -1, 0))
+  rig['LeftLowerLeg'] = calcBoneRotation(rKnee3, rAnkle3, new THREE.Vector3(0, -1, 0))
+  rig['LeftFoot'] = calcBoneRotation(rAnkle3, rToes3, new THREE.Vector3(0, -1, 0))
+  rig['LeftToes'] = calcBoneRotation(rAnkle3, rToes3, new THREE.Vector3(0, 0, 1))
+
+  // Subject's LEFT -> Avatar's RIGHT
+  const lHip3 = lm[POSE_LANDMARKS.leftHip]
+  const lKnee3 = lm[POSE_LANDMARKS.leftKnee]
+  const lAnkle3 = lm[POSE_LANDMARKS.leftAnkle]
+  const lToes3 = lm[POSE_LANDMARKS.leftFootIndex]
+
+  rig['RightUpperLeg'] = calcBoneRotation(lHip3, lKnee3, new THREE.Vector3(0, -1, 0))
+  rig['RightLowerLeg'] = calcBoneRotation(lKnee3, lAnkle3, new THREE.Vector3(0, -1, 0))
+  rig['RightFoot'] = calcBoneRotation(lAnkle3, lToes3, new THREE.Vector3(0, -1, 0))
+  rig['RightToes'] = calcBoneRotation(lAnkle3, lToes3, new THREE.Vector3(0, 0, 1))
+
 
   return rig
 }
