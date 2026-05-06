@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import menuStore from '@/features/stores/menu'
 import { useRecordingStore } from '@/features/stores/recording'
+import { useMotionLogStore } from '@/features/stores/motionLog'
 
 export const useScreenRecording = () => {
   const recordingStore = useRecordingStore()
@@ -8,8 +9,6 @@ export const useScreenRecording = () => {
   const startRecording = useCallback(async () => {
     console.log('useScreenRecording: startRecording called')
     try {
-      // displaySurface: 'window' suggests the user that they should pick a window.
-      // selfBrowserSurface: 'include' and preferCurrentTab keep the focus friendly to the current app.
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           displaySurface: 'browser',
@@ -24,20 +23,23 @@ export const useScreenRecording = () => {
 
       console.log('useScreenRecording: Stream acquired', stream.id)
 
-      // Check supported mime types
       const mimeType = MediaRecorder.isTypeSupported(
         'video/webm;codecs=vp9,opus'
       )
         ? 'video/webm;codecs=vp9,opus'
         : 'video/webm'
 
+      // Clear tracking logs before starting new recording
+      useMotionLogStore.getState().clearLogs()
+
       recordingStore.start(stream, mimeType)
       menuStore.setState({ isRecording: true })
 
-      // Handle the case where the user stops sharing via browser UI
       stream.getVideoTracks()[0].onended = () => {
         console.log('useScreenRecording: Stream ended by external cause')
         recordingStore.stop()
+        useMotionLogStore.getState().exportLogs()
+        menuStore.setState({ isRecording: false })
       }
     } catch (error) {
       console.error(
@@ -51,6 +53,9 @@ export const useScreenRecording = () => {
   const stopRecording = useCallback(() => {
     console.log('useScreenRecording: stopRecording called')
     recordingStore.stop()
+    // Export tracking logs when recording stops manually
+    useMotionLogStore.getState().exportLogs()
+    menuStore.setState({ isRecording: false })
   }, [recordingStore])
 
   return {

@@ -161,6 +161,30 @@ export class Model {
     }
   }
 
+  public getBoneWorldPositions(): Record<string, { x: number; y: number; z: number }> {
+    if (!this.vrm || !this.vrm.humanoid) return {}
+    
+    const bones = [
+      'hips', 'spine', 'chest', 'upperChest', 'neck', 'head',
+      'leftShoulder', 'leftUpperArm', 'leftLowerArm', 'leftHand',
+      'rightShoulder', 'rightUpperArm', 'rightLowerArm', 'rightHand',
+      'leftUpperLeg', 'leftLowerLeg', 'leftFoot', 'leftToes',
+      'rightUpperLeg', 'rightLowerLeg', 'rightFoot', 'rightToes'
+    ]
+
+    const positions: Record<string, { x: number; y: number; z: number }> = {}
+    
+    bones.forEach(b => {
+      const node = this.vrm!.humanoid!.getNormalizedBoneNode(b as any)
+      if (node) {
+        const pos = node.getWorldPosition(new THREE.Vector3())
+        positions[b] = { x: pos.x, y: pos.y, z: pos.z }
+      }
+    })
+
+    return positions
+  }
+
   public async speak(buffer: ArrayBuffer, talk: Talk, isNeedDecode: boolean = true) {
     this.emoteController?.playEmotion(talk.emotion)
     this.playGesture(talk.emotion)

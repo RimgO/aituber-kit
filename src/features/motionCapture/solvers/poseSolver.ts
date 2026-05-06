@@ -6,6 +6,7 @@ import {
   angleToQuaternion,
   mediapipeToVRMCoords,
   mediapipeWorldToVRMCoords,
+  lookRotation,
 } from './mathUtils'
 
 /**
@@ -48,7 +49,7 @@ export const solvePose = (poseLandmarks: any[], poseWorldLandmarks: any[]) => {
   // Hips orientation (Uprighting and mirroring already handled in mathUtils)
   // Character faces camera (+Z).
   // Character Left Hand is at +X, Right Hand is at -X.
-  const hipVec = new THREE.Vector3().subVectors(leftHip, rightHip).normalize() 
+  const hipVec = new THREE.Vector3().subVectors(rightHip, leftHip).normalize() 
   const hipsForward = new THREE.Vector3().crossVectors(hipVec, new THREE.Vector3(0, 1, 0)).normalize()
   const hipsRotation = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), hipsForward)
 
@@ -77,27 +78,30 @@ export const solvePose = (poseLandmarks: any[], poseWorldLandmarks: any[]) => {
   // Use 3D world座標（lm）ベースで腕の向きを決定する
   const getWorld = (idx: number) => lm[idx]
 
+  // Body Up Vector for Arms (using Hips Forward as the 'Up' for arm orientation)
+  const armUp = hipsForward.clone()
+
   // Left Arm (Humanoid Left)
   {
     const lSho = getWorld(POSE_LANDMARKS.leftShoulder)
     const lElb = getWorld(POSE_LANDMARKS.leftElbow)
     const lWrs = getWorld(POSE_LANDMARKS.leftWrist)
 
-    const upperDir = new THREE.Vector3().subVectors(lElb, lSho)
-    // VRM T-pose: Left arm points +X
-    const restUpper = new THREE.Vector3(1, 0, 0)
-    const lUpperQ = new THREE.Quaternion().setFromUnitVectors(
-      restUpper.clone().normalize(),
-      upperDir.clone().normalize()
-    )
+    const upperDir = new THREE.Vector3().subVectors(lElb, lSho).normalize()
+    // LookRotation: Forward = upperDir, Up = body forward
+    // This points the bone's Z axis at the target elbow.
+    const lUpperLookQ = lookRotation(upperDir, armUp)
+    
+    // VRM Left Upper Arm rests at +X. Map +X to the solved Z-axis.
+    // Correction: Rotate -90 deg around Y to bring +X to +Z.
+    const lUpperCorr = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2)
+    const lUpperQ = lUpperLookQ.clone().multiply(lUpperCorr)
     rig['LeftUpperArm'] = lUpperQ
 
     const lowerDir = new THREE.Vector3().subVectors(lWrs, lElb).normalize()
-    // Transform lowerDir to UpperArm local space
-    const localLowerDir = lowerDir.clone().applyQuaternion(lUpperQ.clone().invert())
-    // In UpperArm local space, the lower arm rests pointing +X
-    const restLower = new THREE.Vector3(1, 0, 0)
-    const lLowerQ = new THREE.Quaternion().setFromUnitVectors(restLower, localLowerDir)
+    const lLowerLookQ = lookRotation(lowerDir, armUp)
+    // Map +X to +Z
+    const lLowerQ = lLowerLookQ.clone().multiply(lUpperCorr).premultiply(lUpperQ.clone().invert())
     rig['LeftLowerArm'] = lLowerQ
   }
 
@@ -107,21 +111,19 @@ export const solvePose = (poseLandmarks: any[], poseWorldLandmarks: any[]) => {
     const rElb = getWorld(POSE_LANDMARKS.rightElbow)
     const rWrs = getWorld(POSE_LANDMARKS.rightWrist)
 
-    const upperDir = new THREE.Vector3().subVectors(rElb, rSho)
-    // VRM T-pose: Right arm points -X
-    const restUpper = new THREE.Vector3(-1, 0, 0)
-    const rUpperQ = new THREE.Quaternion().setFromUnitVectors(
-      restUpper.clone().normalize(),
-      upperDir.clone().normalize()
-    )
+    const upperDir = new THREE.Vector3().subVectors(rElb, rSho).normalize()
+    const rUpperLookQ = lookRotation(upperDir, armUp)
+    
+    // VRM Right Upper Arm rests at -X. Map -X to the solved Z-axis.
+    // Correction: Rotate +90 deg around Y to bring -X to +Z.
+    const rUpperCorr = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2)
+    const rUpperQ = rUpperLookQ.clone().multiply(rUpperCorr)
     rig['RightUpperArm'] = rUpperQ
 
     const lowerDir = new THREE.Vector3().subVectors(rWrs, rElb).normalize()
-    // Transform lowerDir to UpperArm local space
-    const localLowerDir = lowerDir.clone().applyQuaternion(rUpperQ.clone().invert())
-    // In UpperArm local space, the lower arm rests pointing -X
-    const restLower = new THREE.Vector3(-1, 0, 0)
-    const rLowerQ = new THREE.Quaternion().setFromUnitVectors(restLower, localLowerDir)
+    const rLowerLookQ = lookRotation(lowerDir, armUp)
+    // Map -X to +Z
+    const rLowerQ = rLowerLookQ.clone().multiply(rUpperCorr).premultiply(rUpperQ.clone().invert())
     rig['RightLowerArm'] = rLowerQ
   }
 

@@ -3,6 +3,8 @@ import { MotionCaptureManager } from './MotionCaptureManager'
 import homeStore from '@/features/stores/home'
 import { Camera } from '@mediapipe/camera_utils'
 import { IconButton } from '@/components/iconButton'
+import { useMotionLogStore } from '@/features/stores/motionLog'
+import menuStore from '@/features/stores/menu'
 
 export const MotionCapture = () => {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -92,19 +94,53 @@ export const MotionCapture = () => {
       if (!videoRef.current || videoRef.current.readyState < 2) return
       const riggedPose = manager.solvePose(results, videoRef.current)
       const { viewer } = homeStore.getState()
+      
       if (viewer.model && riggedPose) {
-        if (!hasPoseRef.current) {
-          hasPoseRef.current = true
-          viewer.model.stopAnimation()
-        }
+        // Enforce stop animation every frame to prevent race conditions with async loading animations
+        viewer.model.stopAnimation()
         viewer.model.animateFromPose(riggedPose)
-        if ((results as any).poseWorldLandmarks || results.poseLandmarks) {
+
+        const rawWorldLandmarks = (results as any).poseWorldLandmarks
+        
+        if (rawWorldLandmarks || results.poseLandmarks) {
           const worldLandmarks =
-            (results as any).poseWorldLandmarks ||
+            rawWorldLandmarks ||
             results.poseLandmarks.map((l: any) => ({ x: l.x, y: l.y, z: 0, visibility: l.visibility }))
           viewer.model.drawDebugSkeleton(worldLandmarks, riggedPose)
         } else {
           viewer.model.drawDebugSkeleton(null, null)
+        }
+
+        // Logging for Motion Capture Debugging
+        const landmarksToLog = rawWorldLandmarks || results.poseLandmarks
+        if (menuStore.getState().isRecording && landmarksToLog) {
+          const vrmPositions = viewer.model.getBoneWorldPositions()
+          
+          const mediapipeData: Record<string, { x: number; y: number; z: number }> = {}
+          const map: Record<number, string> = { 
+            0: 'nose',
+            11: 'leftShoulder', 12: 'rightShoulder', 
+            13: 'leftElbow', 14: 'rightElbow', 
+            15: 'leftWrist', 16: 'rightWrist', 
+            23: 'leftHip', 24: 'rightHip', 
+            25: 'leftKnee', 26: 'rightKnee', 
+            27: 'leftAnkle', 28: 'rightAnkle'
+          }
+          for (let i = 0; i < 33; i++) {
+            if (map[i] && landmarksToLog[i]) {
+              mediapipeData[map[i]] = {
+                x: landmarksToLog[i].x,
+                y: landmarksToLog[i].y,
+                z: landmarksToLog[i].z
+              }
+            }
+          }
+
+          useMotionLogStore.getState().addLog({
+            time: Date.now(),
+            mediapipe: mediapipeData,
+            vrm: vrmPositions
+          })
         }
       }
     })

@@ -90,6 +90,18 @@ export const mediapipeToVRMCoords = (landmark: {
  *    上下反転には関係しないので、そのまま扱う（必要に応じてあとで調整）。
  *    Formula: landmark.z
  */
+export const lookRotation = (forward: THREE.Vector3, up: THREE.Vector3): THREE.Quaternion => {
+  const m = new THREE.Matrix4().lookAt(new THREE.Vector3(0, 0, 0), forward, up)
+  return new THREE.Quaternion().setFromRotationMatrix(m)
+}
+
+/**
+ * MediaPipe World (Meters) -> VRM Space
+ * Mirror Mode Mapping (creativeIKEP style):
+ * X: -landmark.x
+ * Y: -landmark.y
+ * Z: -landmark.z
+ */
 export const mediapipeWorldToVRMCoords = (landmark: {
   x: number
   y: number
@@ -98,7 +110,7 @@ export const mediapipeWorldToVRMCoords = (landmark: {
   return new THREE.Vector3(
     -landmark.x, 
     -landmark.y, 
-    landmark.z
+    -landmark.z
   )
 }
 

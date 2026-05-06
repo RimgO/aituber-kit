@@ -130,13 +130,7 @@ export class MotionCaptureManager {
       ) {
         try {
           const worldLandmarks =
-            (results as any).poseWorldLandmarks ||
-            results.poseLandmarks.map((l) => ({
-              x: l.x,
-              y: l.y,
-              z: 0,
-              visibility: l.visibility,
-            }))
+            (results as any).poseWorldLandmarks || results.poseLandmarks
 
           const solvedPose = solvePose(results.poseLandmarks, worldLandmarks)
           if (solvedPose) poseRig = solvedPose
@@ -289,22 +283,39 @@ export class MotionCaptureManager {
     // Smooth the values into the `riggedPose` directly without disrupting object structure
     const applyEMA = (targetState: any, sourceStructure: any) => {
       if (!sourceStructure) return
+
+      if (sourceStructure.isQuaternion) {
+        targetState.slerp(sourceStructure, alpha)
+        sourceStructure.copy(targetState)
+        return
+      }
+      if (sourceStructure.isVector3) {
+        targetState.lerp(sourceStructure, alpha)
+        sourceStructure.copy(targetState)
+        return
+      }
+
       for (const key in sourceStructure) {
-        if (typeof sourceStructure[key] === 'number') {
+        const val = sourceStructure[key]
+        if (typeof val === 'number') {
           if (targetState[key] === undefined || isNaN(targetState[key])) {
-            targetState[key] = sourceStructure[key]
+            targetState[key] = val
           } else {
             targetState[key] =
-              (1 - alpha) * targetState[key] + alpha * sourceStructure[key]
+              (1 - alpha) * targetState[key] + alpha * val
           }
-          // overwrite the source structure with smoothed value!
           sourceStructure[key] = targetState[key]
-        } else if (
-          typeof sourceStructure[key] === 'object' &&
-          sourceStructure[key] !== null
-        ) {
-          if (!targetState[key]) targetState[key] = {}
-          applyEMA(targetState[key], sourceStructure[key])
+        } else if (typeof val === 'object' && val !== null) {
+          if (!targetState[key]) {
+            if (val.isQuaternion) {
+              targetState[key] = val.clone()
+            } else if (val.isVector3) {
+              targetState[key] = val.clone()
+            } else {
+              targetState[key] = {}
+            }
+          }
+          applyEMA(targetState[key], val)
         }
       }
     }
