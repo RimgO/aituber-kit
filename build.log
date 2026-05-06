@@ -1,0 +1,106 @@
+
+> aituber-kit@0.1.0 build /Users/rimgo/AIMirror/aituber-kit
+> next build
+
+  ▲ Next.js 14.2.35
+  - Environments: .env
+
+   Linting and checking validity of types ...
+
+Failed to compile.
+
+./src/components/Live2DComponent.tsx
+115:6  Warning: React Hook useEffect has a missing dependency: 'app'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+339:6  Warning: React Hook useEffect has a missing dependency: 'saveModelPosition'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/characterPresetMenu.tsx
+298:39  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/common/VideoDisplay.tsx
+77:30  Warning: The ref value 'backgroundVideoRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'backgroundVideoRef.current' to a variable inside the effect, and use that variable in the cleanup function.  react-hooks/exhaustive-deps
+
+./src/components/menu.tsx
+167:6  Warning: React Hook useEffect has missing dependencies: 'startRecording' and 'stopRecording'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/placedImage.tsx
+105:7  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/settings/character.tsx
+150:6  Warning: React Hook useEffect has a missing dependency: 'store'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/settings/images.tsx
+305:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+462:33  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/features/motionCapture/solvers/faceSolver.ts
+28:1  Error: Delete `··`  prettier/prettier
+33:19  Error: Insert `,`  prettier/prettier
+79:41  Error: Replace `faceLandmarks[FACE_LANDMARKS.mouth_top[0]]` with `⏎····faceLandmarks[FACE_LANDMARKS.mouth_top[0]]⏎··`  prettier/prettier
+80:44  Error: Replace `faceLandmarks[FACE_LANDMARKS.mouth_bottom[0]]` with `⏎····faceLandmarks[FACE_LANDMARKS.mouth_bottom[0]]⏎··`  prettier/prettier
+81:42  Error: Replace `faceLandmarks[FACE_LANDMARKS.mouth_left[0]]` with `⏎····faceLandmarks[FACE_LANDMARKS.mouth_left[0]]⏎··`  prettier/prettier
+82:43  Error: Replace `faceLandmarks[FACE_LANDMARKS.mouth_right[0]]` with `⏎····faceLandmarks[FACE_LANDMARKS.mouth_right[0]]⏎··`  prettier/prettier
+85:1  Error: Delete `··`  prettier/prettier
+87:32  Error: Replace `1.0,·Math.max(0.0,·mouthOpenDist·/·MOUTH_OPEN_SCALE)` with `⏎····1.0,⏎····Math.max(0.0,·mouthOpenDist·/·MOUTH_OPEN_SCALE)⏎··`  prettier/prettier
+93:29  Error: Replace `1.0,·Math.max(0.0,·(cornerAvgY·-·mouthCenterY)·*·20)` with `⏎····1.0,⏎····Math.max(0.0,·(cornerAvgY·-·mouthCenterY)·*·20)⏎··`  prettier/prettier
+98:42  Error: Replace `faceLandmarks[FACE_LANDMARKS.left_cheek]` with `⏎····faceLandmarks[FACE_LANDMARKS.left_cheek]⏎··`  prettier/prettier
+99:43  Error: Replace `faceLandmarks[FACE_LANDMARKS.right_cheek]` with `⏎····faceLandmarks[FACE_LANDMARKS.right_cheek]⏎··`  prettier/prettier
+102:41  Error: Replace `.addVectors(leftCheek,·rightCheek)` with `⏎····.addVectors(leftCheek,·rightCheek)⏎····`  prettier/prettier
+109:27  Error: Replace `rightCheek.y·-·leftCheek.y,·rightCheek.x·-·leftCheek.x` with `⏎····rightCheek.y·-·leftCheek.y,⏎····rightCheek.x·-·leftCheek.x⏎··`  prettier/prettier
+114:37  Error: Delete `···············`  prettier/prettier
+116:1  Error: Delete `··`  prettier/prettier
+118:37  Error: Replace `headRotation.x,·headRotation.y,·headRotation.z,·'YXZ'` with `⏎····headRotation.x,⏎····headRotation.y,⏎····headRotation.z,⏎····'YXZ'⏎··`  prettier/prettier
+123:41  Error: Insert `,`  prettier/prettier
+
+./src/features/motionCapture/solvers/handSolver.ts
+2:9  Error: Replace `·calcBoneRotation,·calcBendAngle,·angleToQuaternion,·mediapipeToVRMCoords·` with `⏎··calcBoneRotation,⏎··calcBendAngle,⏎··angleToQuaternion,⏎··mediapipeToVRMCoords,⏎`  prettier/prettier
+52:96  Error: Delete `·`  prettier/prettier
+53:54  Error: Delete `·`  prettier/prettier
+54:104  Error: Delete `·`  prettier/prettier
+58:1  Error: Delete `··`  prettier/prettier
+66:1  Error: Delete `······`  prettier/prettier
+70:1  Error: Delete `······`  prettier/prettier
+75:1  Error: Delete `······`  prettier/prettier
+94:1  Error: Delete `··`  prettier/prettier
+
+./src/features/motionCapture/solvers/mathUtils.ts
+10:3  Error: Delete `·`  prettier/prettier
+71:38  Error: Replace `⏎··landmark:·{·x:·number;·y:·number;·z:·number·}` with `landmark:·{⏎··x:·number⏎··y:·number⏎··z:·number`  prettier/prettier
+73:1  Error: Insert `}`  prettier/prettier
+75:23  Error: Delete `···`  prettier/prettier
+77:16  Error: Delete `·········`  prettier/prettier
+
+./src/features/motionCapture/solvers/poseSolver.ts
+2:9  Error: Replace `·calcBoneRotation,·calcBendAngle,·angleToQuaternion,·mediapipeToVRMCoords·` with `⏎··calcBoneRotation,⏎··calcBendAngle,⏎··angleToQuaternion,⏎··mediapipeToVRMCoords,⏎`  prettier/prettier
+35:1  Error: Delete `··`  prettier/prettier
+44:35  Error: Replace `.addVectors(leftHip,·rightHip)` with `⏎····.addVectors(leftHip,·rightHip)⏎····`  prettier/prettier
+49:41  Error: Replace `.addVectors(screenLeftHip,·screenRightHip)` with `⏎····.addVectors(screenLeftHip,·screenRightHip)⏎····`  prettier/prettier
+57:19  Error: Insert `,`  prettier/prettier
+64:40  Error: Replace `.addVectors(leftShoulder,·rightShoulder)` with `⏎····.addVectors(leftShoulder,·rightShoulder)⏎····`  prettier/prettier
+67:1  Error: Delete `··`  prettier/prettier
+68:81  Error: Delete `·`  prettier/prettier
+71:55  Error: Replace `0,` with `·0,·`  prettier/prettier
+79:42  Error: Replace `.subVectors(leftShoulder,·rightShoulder)` with `⏎····.subVectors(leftShoulder,·rightShoulder)⏎····`  prettier/prettier
+
+./src/hooks/useBrowserSpeechRecognition.ts
+460:6  Warning: React Hook useEffect has a missing dependency: 'stopListening'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/hooks/useRealtimeVoiceAPI.ts
+404:6  Warning: React Hook useEffect has missing dependencies: 'clearSilenceDetection', 'startSilenceDetection', 'stopListening', and 'updateSpeechTimestamp'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/hooks/useSilenceDetection.ts
+180:5  Warning: React Hook useCallback has a missing dependency: 'transcriptRef'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/hooks/useVoiceRecognition.ts
+130:6  Warning: React Hook useEffect has missing dependencies: 'continuousMicListeningMode', 'currentHook', and 'speechRecognitionMode'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/hooks/useWhisperRecognition.ts
+29:9  Warning: The 'processWhisperRecognition' function makes the dependencies of useCallback Hook (at line 158) change on every render. Move it inside the useCallback callback. Alternatively, wrap the definition of 'processWhisperRecognition' in its own useCallback() Hook.  react-hooks/exhaustive-deps
+
+./src/pages/index.tsx
+45:9  Warning: The 'characterPresets' array makes the dependencies of useEffect Hook (at line 101) change on every render. Move it inside the useEffect callback. Alternatively, wrap the initialization of 'characterPresets' in its own useMemo() Hook.  react-hooks/exhaustive-deps
+
+./src/pages/slide-editor/[slideName].tsx
+388:6  Warning: React Hook useCallback has a missing dependency: 'addToast'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+ ELIFECYCLE  Command failed with exit code 1.

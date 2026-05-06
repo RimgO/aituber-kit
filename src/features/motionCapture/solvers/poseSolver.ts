@@ -84,21 +84,21 @@ export const solvePose = (poseLandmarks: any[], poseWorldLandmarks: any[]) => {
     const lWrs = getWorld(POSE_LANDMARKS.leftWrist)
 
     const upperDir = new THREE.Vector3().subVectors(lElb, lSho)
-    // JS サンプルと同じく、左腕レスト方向は -X（左方向）
-    const restUpper = new THREE.Vector3(-1, 0, 0)
+    // VRM T-pose: Left arm points +X
+    const restUpper = new THREE.Vector3(1, 0, 0)
     const lUpperQ = new THREE.Quaternion().setFromUnitVectors(
       restUpper.clone().normalize(),
       upperDir.clone().normalize()
     )
-    // MediaPipe と同じ向きに追従させる
     rig['LeftUpperArm'] = lUpperQ
 
-    const { angle: lBend } = calcBendAngle(lSho, lElb, lWrs)
-    // 肘は Z+ 軸周りに曲げる（サンプルと同じ）
-    rig['LeftLowerArm'] = angleToQuaternion(
-      new THREE.Vector3(0, 0, 1),
-      Math.max(0, Math.PI - lBend)
-    )
+    const lowerDir = new THREE.Vector3().subVectors(lWrs, lElb).normalize()
+    // Transform lowerDir to UpperArm local space
+    const localLowerDir = lowerDir.clone().applyQuaternion(lUpperQ.clone().invert())
+    // In UpperArm local space, the lower arm rests pointing +X
+    const restLower = new THREE.Vector3(1, 0, 0)
+    const lLowerQ = new THREE.Quaternion().setFromUnitVectors(restLower, localLowerDir)
+    rig['LeftLowerArm'] = lLowerQ
   }
 
   // Right Arm (Humanoid Right)
@@ -108,20 +108,21 @@ export const solvePose = (poseLandmarks: any[], poseWorldLandmarks: any[]) => {
     const rWrs = getWorld(POSE_LANDMARKS.rightWrist)
 
     const upperDir = new THREE.Vector3().subVectors(rElb, rSho)
-    // JS サンプルと同じく、右腕レスト方向は +X（右方向）
-    const restUpper = new THREE.Vector3(1, 0, 0)
+    // VRM T-pose: Right arm points -X
+    const restUpper = new THREE.Vector3(-1, 0, 0)
     const rUpperQ = new THREE.Quaternion().setFromUnitVectors(
       restUpper.clone().normalize(),
       upperDir.clone().normalize()
     )
     rig['RightUpperArm'] = rUpperQ
 
-    const { angle: rBend } = calcBendAngle(rSho, rElb, rWrs)
-    // 右肘は Z- 軸周り（サンプルと同じ）
-    rig['RightLowerArm'] = angleToQuaternion(
-      new THREE.Vector3(0, 0, -1),
-      Math.max(0, Math.PI - rBend)
-    )
+    const lowerDir = new THREE.Vector3().subVectors(rWrs, rElb).normalize()
+    // Transform lowerDir to UpperArm local space
+    const localLowerDir = lowerDir.clone().applyQuaternion(rUpperQ.clone().invert())
+    // In UpperArm local space, the lower arm rests pointing -X
+    const restLower = new THREE.Vector3(-1, 0, 0)
+    const rLowerQ = new THREE.Quaternion().setFromUnitVectors(restLower, localLowerDir)
+    rig['RightLowerArm'] = rLowerQ
   }
 
   // --- Legs ---
